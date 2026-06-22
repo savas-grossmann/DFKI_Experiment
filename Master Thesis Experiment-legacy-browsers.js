@@ -1879,6 +1879,7 @@ function Save_Interim_ResultsRoutineEachFrame() {
 }
 
 
+var allRows;
 function Save_Interim_ResultsRoutineEnd(snapshot) {
   return async function () {
     //--- Ending Routine 'Save_Interim_Results' ---
@@ -1889,19 +1890,71 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
     });
     psychoJS.experiment.addData('Save_Interim_Results.stopped', globalClock.getTime());
     // Run 'End Routine' code from save_interim_results
-    var trials = psychoJS.experiment.getAllEntries
-        ? psychoJS.experiment.getAllEntries()
-        : psychoJS.experiment._trialsData;
+    // Collect data from ALL loops, not just _trialsData
+    var allRows = [];
     
+    // Get the experiment's entries including loop data
+    var entries = psychoJS.experiment._trialsData;
+    
+    // Also try to get data from the experiment handler directly
+    if (psychoJS.experiment.extraInfo) {
+        var baseInfo = {};
+        var ei = psychoJS.experiment.extraInfo;
+        for (var key in ei) {
+            if (ei.hasOwnProperty(key)) {
+                baseInfo[key] = ei[key];
+            }
+        }
+    }
+    
+    // Collect all data entries including loop data
+    if (psychoJS.experiment._loops) {
+        for (var li = 0; li < psychoJS.experiment._loops.length; li++) {
+            var loop = psychoJS.experiment._loops[li];
+            if (loop._trialsData) {
+                for (var ri = 0; ri < loop._trialsData.length; ri++) {
+                    allRows.push(loop._trialsData[ri]);
+                }
+            }
+        }
+    }
+    
+    // Fall back to _trialsData if loop collection yielded nothing
+    if (allRows.length === 0 && entries && entries.length > 0) {
+        allRows = entries;
+    }
+    
+    // Merge with experiment-level entries
+    if (entries && entries.length > 0) {
+        for (var ei2 = 0; ei2 < entries.length; ei2++) {
+            var found = false;
+            for (var ai = 0; ai < allRows.length; ai++) {
+                if (allRows[ai] === entries[ei2]) { found = true; break; }
+            }
+            if (!found) allRows.push(entries[ei2]);
+        }
+    }
+    
+    // Build CSV from all collected rows
     function convertToCSV(dataArray) {
         if (!dataArray || dataArray.length === 0) { return ""; }
-        var headers = Object.keys(dataArray[0]);
+    
+        // Collect ALL keys across ALL rows
+        var allKeys = {};
+        for (var i = 0; i < dataArray.length; i++) {
+            var row = dataArray[i];
+            for (var k in row) {
+                if (row.hasOwnProperty(k)) allKeys[k] = true;
+            }
+        }
+        var headers = Object.keys(allKeys);
+    
         var rows = [headers.join(",")];
         for (var i = 0; i < dataArray.length; i++) {
             var row = dataArray[i];
             var values = headers.map(function(h) {
                 var val = (row[h] !== undefined && row[h] !== null) ? String(row[h]) : "";
-                if (val.indexOf(",") !== -1 || val.indexOf("\n") !== -1) {
+                if (val.indexOf(",") !== -1 || val.indexOf("\n") !== -1 || val.indexOf('"') !== -1) {
                     val = '"' + val.replace(/"/g, '""') + '"';
                 }
                 return val;
@@ -1915,17 +1968,23 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
     var sceneNum = (Scene_Loop.thisN !== undefined ? Scene_Loop.thisN : 0) + 1;
     var filename = "participant_" + participantID + "_" + expName.replace(/ /g, "_") + "_scene_" + sceneNum + ".csv";
     
+    var csvData = convertToCSV(allRows);
+    
     fetch("https://pipe.jspsych.org/api/data/", {
         method: "POST",
         headers: {"Content-Type": "application/json", "Accept": "*/*"},
         body: JSON.stringify({
             experimentID: "H2YyJU9MbEIU",
             filename: filename,
-            data: convertToCSV(trials)
+            data: csvData
         })
     }).then(function(r) { return r.json(); })
-      .then(function(result) { console.log("DataPipe OK (scene " + sceneNum + "):", JSON.stringify(result)); })
-      .catch(function(e) { console.error("DataPipe failed (scene " + sceneNum + "):", e); });
+      .then(function(result) {
+          console.log("DataPipe OK (scene " + sceneNum + "):", JSON.stringify(result));
+      })
+      .catch(function(e) {
+          console.error("DataPipe failed (scene " + sceneNum + "):", e);
+      });
     // the Routine "Save_Interim_Results" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
