@@ -6,7 +6,8 @@
 // store info about the experiment session:
 let expName = 'Master Thesis Experiment';  // from the Builder filename that created this script
 let expInfo = {
-    'participant': `${util.pad(Number.parseFloat(util.randint(0, 999999)).toFixed(0), 6)}`,
+    'participant|hid': `${util.pad(Number.parseFloat(util.randint(0, 999999)).toFixed(0), 6)}`,
+    'Initials': '',
     'Age': '',
 };
 let PILOTING = util.getUrlParameters().has('__pilotToken');
@@ -75,6 +76,9 @@ flowScheduler.add(Scene_LoopLoopEnd);
 
 
 
+flowScheduler.add(QuestionnaireRoutineBegin());
+flowScheduler.add(QuestionnaireRoutineEachFrame());
+flowScheduler.add(QuestionnaireRoutineEnd());
 flowScheduler.add(ExitRoutineBegin());
 flowScheduler.add(ExitRoutineEachFrame());
 flowScheduler.add(ExitRoutineEnd());
@@ -141,7 +145,8 @@ var key_resp_scene;
 var Scene_DescriptionClock;
 var task_description;
 var response_box;
-var button_description_continue;
+var key_resp_description;
+var hint_text;
 var Face_RankingClock;
 var ranking_bar_left;
 var ranking_bar_right;
@@ -162,6 +167,7 @@ var timer_text;
 var finish_ranking_key;
 var finish_ranking_text;
 var Save_Interim_ResultsClock;
+var QuestionnaireClock;
 var ExitClock;
 var exit_message;
 var key_resp_2;
@@ -253,29 +259,19 @@ async function experimentInit() {
     depth: -1.0 
   });
   
-  button_description_continue = new visual.ButtonStim({
+  key_resp_description = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
+  
+  hint_text = new visual.TextStim({
     win: psychoJS.window,
-    name: 'button_description_continue',
-    text: 'Continue',
-    font: 'Arvo',
-    pos: [0, (- 0.4)],
-    size: [0.3, 0.1],
-    padding: null,
-    anchor: 'center',
-    ori: 0.0,
-    units: psychoJS.window.units,
-    color: 'white',
-    fillColor: 'darkgrey',
-    borderColor: [-1.0000, -1.0000, -1.0000],
-    colorSpace: 'rgb',
-    borderWidth: 0.25,
-    opacity: null,
-    depth: -2,
-    letterHeight: 0.05,
-    bold: true,
-    italic: false,
+    name: 'hint_text',
+    text: '',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, (- 0.35)], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: undefined,
+    depth: -3.0 
   });
-  button_description_continue.clock = new util.Clock();
   
   // Initialize components for Routine "Face_Ranking"
   Face_RankingClock = new util.Clock();
@@ -501,7 +497,7 @@ async function experimentInit() {
     text: '',
     font: 'Arial',
     units: undefined, 
-    pos: [(- 0.1), (- 0.45)], draggable: false, height: 0.025,  wrapWidth: undefined, ori: 0.0,
+    pos: [(- 0.1), (- 0.35)], draggable: false, height: 0.025,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
     depth: -20.0 
@@ -509,6 +505,8 @@ async function experimentInit() {
   
   // Initialize components for Routine "Save_Interim_Results"
   Save_Interim_ResultsClock = new util.Clock();
+  // Initialize components for Routine "Questionnaire"
+  QuestionnaireClock = new util.Clock();
   // Initialize components for Routine "Exit"
   ExitClock = new util.Clock();
   exit_message = new visual.TextStim({
@@ -990,6 +988,7 @@ function Scene_PresentationRoutineEnd(snapshot) {
 
 
 var Scene_DescriptionMaxDurationReached;
+var _key_resp_description_allKeys;
 var Scene_DescriptionMaxDuration;
 var Scene_DescriptionComponents;
 function Scene_DescriptionRoutineBegin(snapshot) {
@@ -1008,15 +1007,17 @@ function Scene_DescriptionRoutineBegin(snapshot) {
     // update component parameters for each repeat
     response_box.setText('');
     response_box.refresh();
-    // reset button_description_continue to account for continued clicks & clear times on/off
-    button_description_continue.reset()
+    key_resp_description.keys = undefined;
+    key_resp_description.rt = undefined;
+    _key_resp_description_allKeys = [];
     psychoJS.experiment.addData('Scene_Description.started', globalClock.getTime());
     Scene_DescriptionMaxDuration = null
     // keep track of which components have finished
     Scene_DescriptionComponents = [];
     Scene_DescriptionComponents.push(task_description);
     Scene_DescriptionComponents.push(response_box);
-    Scene_DescriptionComponents.push(button_description_continue);
+    Scene_DescriptionComponents.push(key_resp_description);
+    Scene_DescriptionComponents.push(hint_text);
     
     Scene_DescriptionComponents.forEach( function(thisComponent) {
       if ('status' in thisComponent)
@@ -1065,49 +1066,59 @@ function Scene_DescriptionRoutineEachFrame() {
     }
     
     
-    // *button_description_continue* updates
-    if (t >= 0 && button_description_continue.status === PsychoJS.Status.NOT_STARTED) {
+    // *key_resp_description* updates
+    if (t >= 0.0 && key_resp_description.status === PsychoJS.Status.NOT_STARTED) {
       // keep track of start time/frame for later
-      button_description_continue.tStart = t;  // (not accounting for frame time here)
-      button_description_continue.frameNStart = frameN;  // exact frame index
+      key_resp_description.tStart = t;  // (not accounting for frame time here)
+      key_resp_description.frameNStart = frameN;  // exact frame index
       
-      button_description_continue.setAutoDraw(true);
+      // keyboard checking is just starting
+      psychoJS.window.callOnFlip(function() { key_resp_description.clock.reset(); });  // t=0 on next screen flip
+      psychoJS.window.callOnFlip(function() { key_resp_description.start(); }); // start on screen flip
+      psychoJS.window.callOnFlip(function() { key_resp_description.clearEvents(); });
     }
     
-    
-    // if button_description_continue is active this frame...
-    if (button_description_continue.status === PsychoJS.Status.STARTED) {
-    }
-    
-    if (button_description_continue.status === PsychoJS.Status.STARTED) {
-      // check whether button_description_continue has been pressed
-      if (button_description_continue.isClicked) {
-        if (!button_description_continue.wasClicked) {
-          // store time of first click
-          button_description_continue.timesOn.push(button_description_continue.clock.getTime());
-          // store time clicked until
-          button_description_continue.timesOff.push(button_description_continue.clock.getTime());
-        } else {
-          // update time clicked until;
-          button_description_continue.timesOff[button_description_continue.timesOff.length - 1] = button_description_continue.clock.getTime();
-        }
-        if (!button_description_continue.wasClicked) {
-          // end routine when button_description_continue is clicked
-          continueRoutine = false;
-          
-        }
-        // if button_description_continue is still clicked next frame, it is not a new click
-        button_description_continue.wasClicked = true;
-      } else {
-        // if button_description_continue is clicked next frame, it is a new click
-        button_description_continue.wasClicked = false;
+    // if key_resp_description is active this frame...
+    if (key_resp_description.status === PsychoJS.Status.STARTED) {
+      let theseKeys = key_resp_description.getKeys({
+        keyList: typeof 'return' === 'string' ? ['return'] : 'return', 
+        waitRelease: false
+      });
+      _key_resp_description_allKeys = _key_resp_description_allKeys.concat(theseKeys);
+      if (_key_resp_description_allKeys.length > 0) {
+        key_resp_description.keys = _key_resp_description_allKeys[_key_resp_description_allKeys.length - 1].name;  // just the last key pressed
+        key_resp_description.rt = _key_resp_description_allKeys[_key_resp_description_allKeys.length - 1].rt;
+        key_resp_description.duration = _key_resp_description_allKeys[_key_resp_description_allKeys.length - 1].duration;
+        // a response ends the routine
+        continueRoutine = false;
       }
-    } else {
-      // keep clock at 0 if button_description_continue hasn't started / has finished
-      button_description_continue.clock.reset();
-      // if button_description_continue is clicked next frame, it is a new click
-      button_description_continue.wasClicked = false;
     }
+    
+    
+    // *hint_text* updates
+    if (t >= 0.0 && hint_text.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      hint_text.tStart = t;  // (not accounting for frame time here)
+      hint_text.frameNStart = frameN;  // exact frame index
+      
+      hint_text.setAutoDraw(true);
+    }
+    
+    
+    // if hint_text is active this frame...
+    if (hint_text.status === PsychoJS.Status.STARTED) {
+    }
+    
+    // Run 'Each Frame' code from continue_description
+    var text_length = (response_box.text) ? response_box.text.length : 0;
+    
+    if (key_resp_description.keys === 'return' && text_length < 50) {
+        key_resp_description.keys = [];
+        _key_resp_description_allKeys = [];
+        continueRoutine = true;
+    }
+    
+    hint_text.setText('Press ENTER to continue (' + text_length + '/50 characters)');
     // check for quit (typically the Esc key)
     if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
       return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
@@ -1146,9 +1157,18 @@ function Scene_DescriptionRoutineEnd(snapshot) {
     });
     psychoJS.experiment.addData('Scene_Description.stopped', globalClock.getTime());
     psychoJS.experiment.addData('response_box.text',response_box.text)
-    psychoJS.experiment.addData('button_description_continue.numClicks', button_description_continue.numClicks);
-    psychoJS.experiment.addData('button_description_continue.timesOn', button_description_continue.timesOn);
-    psychoJS.experiment.addData('button_description_continue.timesOff', button_description_continue.timesOff);
+    // update the trial handler
+    if (currentLoop instanceof MultiStairHandler) {
+      currentLoop.addResponse(key_resp_description.corr, level);
+    }
+    psychoJS.experiment.addData('key_resp_description.keys', key_resp_description.keys);
+    if (typeof key_resp_description.keys !== 'undefined') {  // we had a response
+        psychoJS.experiment.addData('key_resp_description.rt', key_resp_description.rt);
+        psychoJS.experiment.addData('key_resp_description.duration', key_resp_description.duration);
+        routineTimer.reset();
+        }
+    
+    key_resp_description.stop();
     // the Routine "Scene_Description" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -1691,7 +1711,7 @@ function Face_RankingRoutineEachFrame() {
     // if finish_ranking_key is active this frame...
     if (finish_ranking_key.status === PsychoJS.Status.STARTED) {
       let theseKeys = finish_ranking_key.getKeys({
-        keyList: typeof 'space' === 'string' ? ['space'] : 'space', 
+        keyList: typeof 'return' === 'string' ? ['return'] : 'return', 
         waitRelease: false
       });
       _finish_ranking_key_allKeys = _finish_ranking_key_allKeys.concat(theseKeys);
@@ -1714,7 +1734,7 @@ function Face_RankingRoutineEachFrame() {
     // *finish_ranking_text* updates
     if (t >= 999 && finish_ranking_text.status === PsychoJS.Status.NOT_STARTED) {
       // update params
-      finish_ranking_text.setText('Press SPACE to finish the ranking', false);
+      finish_ranking_text.setText('Press ENTER to finish the ranking', false);
       // keep track of start time/frame for later
       finish_ranking_text.tStart = t;  // (not accounting for frame time here)
       finish_ranking_text.frameNStart = frameN;  // exact frame index
@@ -1726,7 +1746,7 @@ function Face_RankingRoutineEachFrame() {
     // if finish_ranking_text is active this frame...
     if (finish_ranking_text.status === PsychoJS.Status.STARTED) {
       // update params
-      finish_ranking_text.setText('Press SPACE to finish the ranking', false);
+      finish_ranking_text.setText('Press ENTER to finish the ranking', false);
     }
     
     // check for quit (typically the Esc key)
@@ -1986,6 +2006,164 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
           console.error("DataPipe failed (scene " + sceneNum + "):", e);
       });
     // the Routine "Save_Interim_Results" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+var QuestionnaireMaxDurationReached;
+var demo_done;
+var QuestionnaireMaxDuration;
+var QuestionnaireComponents;
+function QuestionnaireRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'Questionnaire' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    QuestionnaireClock.reset();
+    routineTimer.reset();
+    QuestionnaireMaxDurationReached = false;
+    // update component parameters for each repeat
+    // Run 'Begin Routine' code from question_code
+    // Hide the PsychoJS canvas temporarily
+    psychoJS.window._renderer.view.style.display = 'none';
+    
+    // Create overlay form
+    var overlay = document.createElement('div');
+    overlay.id = 'demo-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;';
+    
+    overlay.innerHTML = '\
+    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:400px;">\
+      <h2 style="margin-top:0;">A few last questions</h2>\
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">Gender</label>\
+        <select id="demo-gender" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+          <option value="female">Female</option>\
+          <option value="male">Male</option>\
+          <option value="non-binary">Non-binary</option>\
+          <option value="diverse">Diverse</option>\
+          <option value="prefer_not">Prefer not to say</option>\
+          <option value="other">Other</option>\
+        </select>\
+      </div>\
+      <div style="margin-bottom:30px;">\
+        <label style="display:block;margin-bottom:8px;">Ethnic background</label>\
+        <select id="demo-race" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+          <option value="white">White / Caucasian</option>\
+          <option value="black">Black / African descent</option>\
+          <option value="asian">Asian</option>\
+          <option value="hispanic">Hispanic / Latino</option>\
+          <option value="middle_eastern">Middle Eastern</option>\
+          <option value="mixed">Mixed / Multiple</option>\
+          <option value="prefer_not">Prefer not to say</option>\
+          <option value="other">Other</option>\
+        </select>\
+      </div>\
+      <button id="demo-submit" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
+      <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer both questions.</p>\
+    </div>';
+    
+    document.body.appendChild(overlay);
+    
+    // flag to signal routine can end
+    demo_done = false;
+    
+    document.getElementById('demo-submit').addEventListener('click', function() {
+        var gender = document.getElementById('demo-gender').value;
+        var race = document.getElementById('demo-race').value;
+    
+        if (!gender || !race) {
+            document.getElementById('demo-error').style.display = 'block';
+            return;
+        }
+    
+        // save to experiment data
+        psychoJS.experiment.addData('gender', gender);
+        psychoJS.experiment.addData('ethnic_background', race);
+    
+        // clean up
+        document.body.removeChild(overlay);
+        psychoJS.window._renderer.view.style.display = 'block';
+        demo_done = true;
+    });
+    psychoJS.experiment.addData('Questionnaire.started', globalClock.getTime());
+    QuestionnaireMaxDuration = null
+    // keep track of which components have finished
+    QuestionnaireComponents = [];
+    
+    QuestionnaireComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+       });
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function QuestionnaireRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'Questionnaire' ---
+    // get current time
+    t = QuestionnaireClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    if (demo_done) {
+        continueRoutine = false;
+    }
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    QuestionnaireComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+      }
+    });
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+function QuestionnaireRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'Questionnaire' ---
+    QuestionnaireComponents.forEach( function(thisComponent) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    });
+    psychoJS.experiment.addData('Questionnaire.stopped', globalClock.getTime());
+    // ensure canvas is visible again in case something went wrong
+    psychoJS.window._renderer.view.style.display = 'block';
+    // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
     // Routines running outside a loop should always advance the datafile row
