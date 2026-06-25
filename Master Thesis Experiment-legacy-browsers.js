@@ -6,13 +6,16 @@
 // store info about the experiment session:
 let expName = 'Master Thesis Experiment';  // from the Builder filename that created this script
 let expInfo = {
-    'participant|hid': `${util.pad(Number.parseFloat(util.randint(0, 999999)).toFixed(0), 6)}`,
     'Initials': '',
     'Age': '',
 };
 let PILOTING = util.getUrlParameters().has('__pilotToken');
 
 // Start code blocks for 'Before Experiment'
+// Run 'Before Experiment' code from participantID
+expInfo['participant'] = util.pad(
+    Number.parseFloat(util.randint(0, 9999999)).toFixed(0), 6
+);
 // Run 'Before Experiment' code from snap_pictures
 
 function distanceCalc(pos1, pos2) {
@@ -1725,7 +1728,7 @@ function Face_RankingRoutineEachFrame() {
     }
     
     // Run 'Each Frame' code from gate_finish_ranking
-    if (finish_ranking_key.keys === 'space' && !submit_allowed) {
+    if (finish_ranking_key.keys === 'return' && !submit_allowed) {
         finish_ranking_key.keys = [];
         _finish_ranking_key_allKeys = [];
         continueRoutine = true;
@@ -1958,8 +1961,6 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
     // Build CSV from all collected rows
     function convertToCSV(dataArray) {
         if (!dataArray || dataArray.length === 0) { return ""; }
-    
-        // Collect ALL keys across ALL rows
         var allKeys = {};
         for (var i = 0; i < dataArray.length; i++) {
             var row = dataArray[i];
@@ -1968,20 +1969,18 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
             }
         }
         var headers = Object.keys(allKeys);
-    
-        var rows = [headers.join(",")];
+        var rows = [headers.map(function(h) {
+            return '"' + String(h).replace(/"/g, '""') + '"';
+        }).join(',')];
         for (var i = 0; i < dataArray.length; i++) {
             var row = dataArray[i];
             var values = headers.map(function(h) {
-                var val = (row[h] !== undefined && row[h] !== null) ? String(row[h]) : "";
-                if (val.indexOf(",") !== -1 || val.indexOf("\n") !== -1 || val.indexOf('"') !== -1) {
-                    val = '"' + val.replace(/"/g, '""') + '"';
-                }
-                return val;
+                var val = (row[h] !== undefined && row[h] !== null) ? String(row[h]) : '';
+                return '"' + val.replace(/"/g, '""') + '"';
             });
-            rows.push(values.join(","));
+            rows.push(values.join(','));
         }
-        return rows.join("\n");
+        return rows.join('\n');
     }
     
     var participantID = expInfo["participant"] || "unknown";
@@ -2019,6 +2018,8 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
 
 var QuestionnaireMaxDurationReached;
 var demo_done;
+var demo_gender;
+var demo_race;
 var QuestionnaireMaxDuration;
 var QuestionnaireComponents;
 function QuestionnaireRoutineBegin(snapshot) {
@@ -2043,6 +2044,8 @@ function QuestionnaireRoutineBegin(snapshot) {
     var overlay = document.createElement('div');
     overlay.id = 'demo-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;';
+    var demo_gender = '';
+    var demo_race = '';
     
     overlay.innerHTML = '\
     <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:400px;">\
@@ -2081,6 +2084,8 @@ function QuestionnaireRoutineBegin(snapshot) {
     
     // flag to signal routine can end
     demo_done = false;
+    demo_gender = '';
+    demo_race = '';
     
     document.getElementById('demo-submit').addEventListener('click', function() {
         var gender = document.getElementById('demo-gender').value;
@@ -2091,9 +2096,9 @@ function QuestionnaireRoutineBegin(snapshot) {
             return;
         }
     
-        // save to experiment data
-        psychoJS.experiment.addData('gender', gender);
-        psychoJS.experiment.addData('ethnic_background', race);
+        // store in global vars, save in RoutineEnd
+        demo_gender = gender;
+        demo_race = race;
     
         // clean up
         document.body.removeChild(overlay);
@@ -2163,6 +2168,12 @@ function QuestionnaireRoutineEnd(snapshot) {
     psychoJS.experiment.addData('Questionnaire.stopped', globalClock.getTime());
     // ensure canvas is visible again in case something went wrong
     psychoJS.window._renderer.view.style.display = 'block';
+    // save questionnaire data
+    psychoJS.experiment.addData('gender', demo_gender);
+    psychoJS.experiment.addData('ethnic_background', demo_race);
+    psychoJS.experiment.nextEntry();
+    // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
     // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -2291,7 +2302,6 @@ function ExitRoutineEachFrame() {
 }
 
 
-var csv;
 function ExitRoutineEnd(snapshot) {
   return async function () {
     //--- Ending Routine 'Exit' ---
@@ -2303,13 +2313,24 @@ function ExitRoutineEnd(snapshot) {
     psychoJS.experiment.addData('Exit.stopped', globalClock.getTime());
     psychoJS._saveResults = 0;
     
-    let csv = psychoJS.experiment._trialsData
-        .map(row => Object.values(row).join(","))
-        .join("\n");
+    function buildCSV(trialsData) {
+            if (!trialsData || trialsData.length === 0) return '';
+            var headers = Object.keys(trialsData[0]);
+            var rows = [headers.map(function(h) {
+                return '"' + String(h).replace(/"/g, '""') + '"';
+            }).join(',')];
+            for (var i = 0; i < trialsData.length; i++) {
+                var row = trialsData[i];
+                var values = headers.map(function(h) {
+                    var val = (row[h] !== undefined && row[h] !== null) ? String(row[h]) : '';
+                    return '"' + val.replace(/"/g, '""') + '"';
+                });
+                rows.push(values.join(','));
+            }
+            return rows.join('\n');
+        }
     
-    // header (important if you want readable CSV)
-    let headers = Object.keys(psychoJS.experiment._trialsData[0] || {});
-    csv = headers.join(",") + "\n" + csv;
+        let csv = buildCSV(psychoJS.experiment._trialsData);
     
     // filename must be unique
     let filename =
