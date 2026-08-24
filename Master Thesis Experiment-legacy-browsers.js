@@ -43,7 +43,7 @@ const psychoJS = new PsychoJS({
 psychoJS.openWindow({
   fullscr: true,
   color: new util.Color([0,0,0]),
-  units: 'height',
+  units: 'norm',
   waitBlanking: true,
   backgroundImage: '',
   backgroundFit: 'none',
@@ -61,6 +61,9 @@ psychoJS.scheduleCondition(function() { return (psychoJS.gui.dialogComponent.but
 // flowScheduler gets run if the participants presses OK
 flowScheduler.add(updateInfo); // add timeStamp
 flowScheduler.add(experimentInit);
+flowScheduler.add(Download_ConsentRoutineBegin());
+flowScheduler.add(Download_ConsentRoutineEachFrame());
+flowScheduler.add(Download_ConsentRoutineEnd());
 flowScheduler.add(InstructionsRoutineBegin());
 flowScheduler.add(InstructionsRoutineEachFrame());
 flowScheduler.add(InstructionsRoutineEnd());
@@ -120,6 +123,7 @@ psychoJS.start({
     {'name': 'resources/iat/incong_train.xlsx', 'path': 'resources/iat/incong_train.xlsx'},
     {'name': 'resources/iat/incong_test.xlsx', 'path': 'resources/iat/incong_test.xlsx'},
     {'name': 'default.png', 'path': 'https://pavlovia.org/assets/default/default.png'},
+    {'name': 'resources/documents/consent_form.pdf', 'path': 'resources/documents/consent_form.pdf'},
     {'name': 'resources/scenes/male/Auto_M.jpg', 'path': 'resources/scenes/male/Auto_M.jpg'},
     {'name': 'resources/scenes/male/Bankautomat_M.jpg', 'path': 'resources/scenes/male/Bankautomat_M.jpg'},
     {'name': 'resources/scenes/male/Baseballschlaeger_M.jpg', 'path': 'resources/scenes/male/Baseballschlaeger_M.jpg'},
@@ -209,6 +213,7 @@ async function updateInfo() {
 }
 
 
+var Download_ConsentClock;
 var InstructionsClock;
 var instruction_text;
 var key_resp;
@@ -279,6 +284,8 @@ var key_resp_2;
 var globalClock;
 var routineTimer;
 async function experimentInit() {
+  // Initialize components for Routine "Download_Consent"
+  Download_ConsentClock = new util.Clock();
   // Initialize components for Routine "Instructions"
   InstructionsClock = new util.Clock();
   instruction_text = new visual.TextStim({
@@ -896,6 +903,134 @@ var t;
 var frameN;
 var continueRoutine;
 var routineForceEnded;
+var Download_ConsentMaxDurationReached;
+var consentDone;
+var consentDownloadClicked;
+var Download_ConsentMaxDuration;
+var Download_ConsentComponents;
+function Download_ConsentRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'Download_Consent' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    Download_ConsentClock.reset();
+    routineTimer.reset();
+    Download_ConsentMaxDurationReached = false;
+    // update component parameters for each repeat
+    psychoJS.window._renderer.view.style.display = 'none';
+    
+    var overlay = document.createElement('div');
+    overlay.id = 'consent-download-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;';
+    
+    overlay.innerHTML = '\
+    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;max-width:500px;text-align:center;">\
+      <h2 style="margin-top:0;">Consent Form</h2>\
+      <p>Please download the consent form below, sign it, and email the signed copy to email@dfki.com</strong> before continuing.</p>\
+      <a id="consent-download-link" href="resources/documents/consent_form.pdf" download="consent_form.pdf" \
+         style="display:inline-block;margin:20px 0;padding:12px 24px;background:#4CAF50;color:white;text-decoration:none;border-radius:4px;font-size:16px;">\
+         Download Consent Form\
+      </a>\
+      <br>\
+      <button id="consent-continue" style="margin-top:20px;padding:12px 24px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">\
+        I have downloaded and will email the form - Continue\
+      </button>\
+    </div>';
+    
+    document.body.appendChild(overlay);
+    
+    consentDone = false;
+    consentDownloadClicked = false;
+    
+    document.getElementById('consent-download-link').addEventListener('click', function () {
+        consentDownloadClicked = true;
+    });
+    
+    document.getElementById('consent-continue').addEventListener('click', function () {
+        document.body.removeChild(overlay);
+        psychoJS.window._renderer.view.style.display = 'block';
+        consentDone = true;
+    });
+    psychoJS.experiment.addData('Download_Consent.started', globalClock.getTime());
+    Download_ConsentMaxDuration = null
+    // keep track of which components have finished
+    Download_ConsentComponents = [];
+    
+    Download_ConsentComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+       });
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function Download_ConsentRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'Download_Consent' ---
+    // get current time
+    t = Download_ConsentClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    if (consentDone) {
+        continueRoutine = false;
+    }
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    Download_ConsentComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+      }
+    });
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+function Download_ConsentRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'Download_Consent' ---
+    Download_ConsentComponents.forEach( function(thisComponent) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    });
+    psychoJS.experiment.addData('Download_Consent.stopped', globalClock.getTime());
+    psychoJS.window._renderer.view.style.display = 'block';
+    psychoJS.experiment.addData('consent_download_clicked', true);
+    // the Routine "Download_Consent" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
 var InstructionsMaxDurationReached;
 var _key_resp_allKeys;
 var InstructionsMaxDuration;
@@ -3837,9 +3972,9 @@ function IAT_feedbackRoutineEnd(snapshot) {
 
 
 var QuestionnaireMaxDurationReached;
-var demo_done;
 var demo_gender;
 var demo_race;
+var demo_done;
 var QuestionnaireMaxDuration;
 var QuestionnaireComponents;
 function QuestionnaireRoutineBegin(snapshot) {
@@ -3864,8 +3999,8 @@ function QuestionnaireRoutineBegin(snapshot) {
     var overlay = document.createElement('div');
     overlay.id = 'demo-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;';
-    var demo_gender = '';
-    var demo_race = '';
+    demo_gender = '';
+    demo_race = '';
     
     overlay.innerHTML = '\
     <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:400px;">\
