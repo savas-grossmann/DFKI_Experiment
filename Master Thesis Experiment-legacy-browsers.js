@@ -34,6 +34,12 @@ function movePicked(picked, mouse, grabbed) {
     }
     return null;
 }
+
+
+function aspectCorrectedSize(targetWidth, targetHeight) {
+    var winAspect = psychoJS.window.size[0] / psychoJS.window.size[1];
+    return [targetWidth / winAspect, targetHeight];
+}
 // init psychoJS:
 const psychoJS = new PsychoJS({
   debug: true
@@ -61,9 +67,9 @@ psychoJS.scheduleCondition(function() { return (psychoJS.gui.dialogComponent.but
 // flowScheduler gets run if the participants presses OK
 flowScheduler.add(updateInfo); // add timeStamp
 flowScheduler.add(experimentInit);
-flowScheduler.add(Download_ConsentRoutineBegin());
-flowScheduler.add(Download_ConsentRoutineEachFrame());
-flowScheduler.add(Download_ConsentRoutineEnd());
+flowScheduler.add(Check_ConsentRoutineBegin());
+flowScheduler.add(Check_ConsentRoutineEachFrame());
+flowScheduler.add(Check_ConsentRoutineEnd());
 flowScheduler.add(InstructionsRoutineBegin());
 flowScheduler.add(InstructionsRoutineEachFrame());
 flowScheduler.add(InstructionsRoutineEnd());
@@ -213,7 +219,10 @@ async function updateInfo() {
 }
 
 
-var Download_ConsentClock;
+var Check_ConsentClock;
+var consent_textbox;
+var accept_consent;
+var end_study;
 var InstructionsClock;
 var instruction_text;
 var key_resp;
@@ -223,6 +232,7 @@ var Scene_PresentationClock;
 var scene_description;
 var scene_image;
 var key_resp_scene;
+var finish_scene_presentation;
 var Scene_DescriptionClock;
 var task_description;
 var response_box;
@@ -284,14 +294,88 @@ var key_resp_2;
 var globalClock;
 var routineTimer;
 async function experimentInit() {
-  // Initialize components for Routine "Download_Consent"
-  Download_ConsentClock = new util.Clock();
+  // Initialize components for Routine "Check_Consent"
+  Check_ConsentClock = new util.Clock();
+  consent_textbox = new visual.TextBox({
+    win: psychoJS.window,
+    name: 'consent_textbox',
+    text: 'This study investigates how different contextual information influences the perception and evaluation of faces. Your responses will be anonymized and used for scientific purposes, and may be included in academic publications.\n \nWhat You Will Do:\n- Read this information sheet and provide informed consent\n- Evaluate and rank face images together with contextual information\n- Complete a short demographic questionnaire\n- Complete a brief debriefing questionnaire\n \nThis study takes approximately 60 minutes.\n \nParticipation is voluntary. You may skip individual tasks or withdraw from the study at any time without giving a reason and without any disadvantage.\n \nYour data will be processed confidentially and used exclusively for scientific research purposes.\n \nSarah Boidoglou & Savas Großmann (Study Leads) — sarah.boidoglou@dfki.de, savas.grossmann@dfki.de\nMansi Sharma (Supervision) — mansi.sharma@dfki.de\nDFKI GmbH, Kesselhaus in der Lanolinfabrik, Salzufer 15/16, 10587 Berlin, Germany\n \nBy agreeing below, you confirm that you have read and understood this information and voluntarily consent to participate in this study.',
+    placeholder: 'Type here...',
+    font: 'Arial',
+    pos: [0, 0.1], 
+    draggable: false,
+    letterHeight: 0.05,
+    lineSpacing: 1.0,
+    size: [1.6, 1.4],  units: undefined, 
+    ori: 0.0,
+    color: 'white', colorSpace: 'rgb',
+    fillColor: undefined, borderColor: 'black',
+    languageStyle: 'LTR',
+    bold: false, italic: false,
+    opacity: undefined,
+    padding: 0.0,
+    alignment: 'top-left',
+    overflow: 'scroll',
+    editable: false,
+    multiline: true,
+    anchor: 'center',
+    depth: 0.0 
+  });
+  
+  accept_consent = new visual.ButtonStim({
+    win: psychoJS.window,
+    name: 'accept_consent',
+    text: 'I Accept',
+    font: 'Arvo',
+    pos: [(- 0.6), (- 0.85)],
+    size: [0.35, 0.15],
+    padding: null,
+    anchor: 'center',
+    ori: 0.0,
+    units: psychoJS.window.units,
+    color: 'white',
+    fillColor: 'darkgrey',
+    borderColor: null,
+    colorSpace: 'rgb',
+    borderWidth: 0.0,
+    opacity: null,
+    depth: -1,
+    letterHeight: 0.05,
+    bold: true,
+    italic: false,
+  });
+  accept_consent.clock = new util.Clock();
+  
+  end_study = new visual.ButtonStim({
+    win: psychoJS.window,
+    name: 'end_study',
+    text: 'I do not agree',
+    font: 'Arvo',
+    pos: [0.6, (- 0.85)],
+    size: [0.35, 0.15],
+    padding: null,
+    anchor: 'center',
+    ori: 0.0,
+    units: psychoJS.window.units,
+    color: 'white',
+    fillColor: 'darkgrey',
+    borderColor: null,
+    colorSpace: 'rgb',
+    borderWidth: 0.0,
+    opacity: null,
+    depth: -2,
+    letterHeight: 0.05,
+    bold: true,
+    italic: false,
+  });
+  end_study.clock = new util.Clock();
+  
   // Initialize components for Routine "Instructions"
   InstructionsClock = new util.Clock();
   instruction_text = new visual.TextStim({
     win: psychoJS.window,
     name: 'instruction_text',
-    text: 'Welcome to the experiment.\n\nIn this study, you will complete a series of trials consisting of three phases.\n\nPhase 1 – Scene Presentation\n\nYou will first see a short scene description together with an image.\n\nPhase 2 – Face Description\n\nAfter viewing the scene, you will be asked to briefly describe the face of the person shown in the scene using your own words.\n\nPhase 3 – Face Ranking\n\nNext, you will see a collage containing six faces. Your task is to rank the faces according to how likely they match the previously shown scene.\n\nPlace the face you think matches the scene best closer to “Most likely” and the face you think matches the scene least closer to “Least likely”.\n\nThere are no correct or incorrect answers.\n\nPress SPACE to begin.',
+    text: 'Welcome to the experiment.\n\nIn this study, you will complete a series of trials consisting of three phases.\n\nPhase 1 – Scene Presentation\n\nYou will first see a short scene description together with an image.\n\nPhase 2 – Face Description\n\nAfter viewing the scene, you will be asked to briefly describe the face of the person shown in the scene using your own words.\n\nPhase 3 – Face Ranking\n\nNext, you will see a collage containing six faces. Your task is to rank the faces according to how likely they match the previously shown scene.\n\nPlace the face you think matches the scene best closer to “Most likely” and the face you think matches the scene least closer to “Least likely”.\n\nThere are no correct or incorrect answers.\n\nPress ENTER to begin.',
     font: 'Arial',
     units: undefined, 
     pos: [0, 0], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
@@ -324,7 +408,7 @@ async function experimentInit() {
     text: '',
     font: 'Arial',
     units: undefined, 
-    pos: [0, 0.3], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
+    pos: [0, 0.6], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
     depth: 0.0 
@@ -338,12 +422,24 @@ async function experimentInit() {
     ori : 0.0, 
     pos : [0, (- 0.1)], 
     draggable: false,
-    size : [1, 0.5],
+    size : undefined,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
     texRes : 128.0, interpolate : true, depth : -1.0 
   });
   key_resp_scene = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
+  
+  finish_scene_presentation = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'finish_scene_presentation',
+    text: '',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, (- 0.7)], draggable: false, height: 0.025,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: undefined,
+    depth: -4.0 
+  });
   
   // Initialize components for Routine "Scene_Description"
   Scene_DescriptionClock = new util.Clock();
@@ -378,7 +474,7 @@ async function experimentInit() {
     opacity: undefined,
     padding: 0.0,
     alignment: 'top-left',
-    overflow: 'visible',
+    overflow: 'scroll',
     editable: true,
     multiline: true,
     anchor: 'center',
@@ -447,9 +543,9 @@ async function experimentInit() {
     image : 'default.png', mask : undefined,
     anchor : 'center',
     ori : 0.0, 
-    pos : [(- 0.75), (- 0.25)], 
+    pos : [(- 0.85), (- 0.25)], 
     draggable: true,
-    size : 0.25,
+    size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
     texRes : 128.0, interpolate : true, depth : -3.0 
@@ -460,9 +556,9 @@ async function experimentInit() {
     image : 'default.png', mask : undefined,
     anchor : 'center',
     ori : 0.0, 
-    pos : [(- 0.45), (- 0.25)], 
+    pos : [(- 0.51), (- 0.25)], 
     draggable: true,
-    size : 0.25,
+    size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
     texRes : 128.0, interpolate : true, depth : -4.0 
@@ -473,9 +569,9 @@ async function experimentInit() {
     image : 'default.png', mask : undefined,
     anchor : 'center',
     ori : 0.0, 
-    pos : [(- 0.15), (- 0.25)], 
+    pos : [(- 0.17), (- 0.25)], 
     draggable: true,
-    size : 0.25,
+    size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
     texRes : 128.0, interpolate : true, depth : -5.0 
@@ -486,9 +582,9 @@ async function experimentInit() {
     image : 'default.png', mask : undefined,
     anchor : 'center',
     ori : 0.0, 
-    pos : [0.15, (- 0.25)], 
+    pos : [0.17, (- 0.25)], 
     draggable: true,
-    size : 0.25,
+    size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
     texRes : 128.0, interpolate : true, depth : -6.0 
@@ -499,9 +595,9 @@ async function experimentInit() {
     image : 'default.png', mask : undefined,
     anchor : 'center',
     ori : 0.0, 
-    pos : [0.45, (- 0.25)], 
+    pos : [0.51, (- 0.25)], 
     draggable: true,
-    size : 0.25,
+    size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
     texRes : 128.0, interpolate : true, depth : -7.0 
@@ -512,18 +608,18 @@ async function experimentInit() {
     image : 'default.png', mask : undefined,
     anchor : 'center',
     ori : 0.0, 
-    pos : [0.75, (- 0.25)], 
+    pos : [0.85, (- 0.25)], 
     draggable: true,
-    size : 0.25,
+    size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
     texRes : 128.0, interpolate : true, depth : -8.0 
   });
   pos_1 = new visual.Rect ({
     win: psychoJS.window, name: 'pos_1', 
-    width: [0.25, 0.25][0], height: [0.25, 0.25][1],
+    width: [1.0, 1.0][0], height: [1.0, 1.0][1],
     ori: 0.0, 
-    pos: [(- 0.75), 0.25], 
+    pos: [(- 0.85), 0.25], 
     draggable: false, 
     anchor: 'center', 
     lineWidth: 5.0, 
@@ -537,9 +633,9 @@ async function experimentInit() {
   
   pos_2 = new visual.Rect ({
     win: psychoJS.window, name: 'pos_2', 
-    width: [0.25, 0.25][0], height: [0.25, 0.25][1],
+    width: [1.0, 1.0][0], height: [1.0, 1.0][1],
     ori: 0.0, 
-    pos: [(- 0.45), 0.25], 
+    pos: [(- 0.51), 0.25], 
     draggable: false, 
     anchor: 'center', 
     lineWidth: 5.0, 
@@ -553,9 +649,9 @@ async function experimentInit() {
   
   pos_3 = new visual.Rect ({
     win: psychoJS.window, name: 'pos_3', 
-    width: [0.25, 0.25][0], height: [0.25, 0.25][1],
+    width: [1.0, 1.0][0], height: [1.0, 1.0][1],
     ori: 0.0, 
-    pos: [(- 0.15), 0.25], 
+    pos: [(- 0.17), 0.25], 
     draggable: false, 
     anchor: 'center', 
     lineWidth: 5.0, 
@@ -569,9 +665,9 @@ async function experimentInit() {
   
   pos_4 = new visual.Rect ({
     win: psychoJS.window, name: 'pos_4', 
-    width: [0.25, 0.25][0], height: [0.25, 0.25][1],
+    width: [1.0, 1.0][0], height: [1.0, 1.0][1],
     ori: 0.0, 
-    pos: [0.15, 0.25], 
+    pos: [0.17, 0.25], 
     draggable: false, 
     anchor: 'center', 
     lineWidth: 5.0, 
@@ -585,9 +681,9 @@ async function experimentInit() {
   
   pos_5 = new visual.Rect ({
     win: psychoJS.window, name: 'pos_5', 
-    width: [0.25, 0.25][0], height: [0.25, 0.25][1],
+    width: [1.0, 1.0][0], height: [1.0, 1.0][1],
     ori: 0.0, 
-    pos: [0.45, 0.25], 
+    pos: [0.51, 0.25], 
     draggable: false, 
     anchor: 'center', 
     lineWidth: 5.0, 
@@ -601,9 +697,9 @@ async function experimentInit() {
   
   pos_6 = new visual.Rect ({
     win: psychoJS.window, name: 'pos_6', 
-    width: [0.25, 0.25][0], height: [0.25, 0.25][1],
+    width: [1.0, 1.0][0], height: [1.0, 1.0][1],
     ori: 0.0, 
-    pos: [0.75, 0.25], 
+    pos: [0.85, 0.25], 
     draggable: false, 
     anchor: 'center', 
     lineWidth: 5.0, 
@@ -903,65 +999,36 @@ var t;
 var frameN;
 var continueRoutine;
 var routineForceEnded;
-var Download_ConsentMaxDurationReached;
-var consentDone;
-var consentDownloadClicked;
-var Download_ConsentMaxDuration;
-var Download_ConsentComponents;
-function Download_ConsentRoutineBegin(snapshot) {
+var Check_ConsentMaxDurationReached;
+var Check_ConsentMaxDuration;
+var Check_ConsentComponents;
+function Check_ConsentRoutineBegin(snapshot) {
   return async function () {
     TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
     
-    //--- Prepare to start Routine 'Download_Consent' ---
+    //--- Prepare to start Routine 'Check_Consent' ---
     t = 0;
     frameN = -1;
     continueRoutine = true; // until we're told otherwise
     // keep track of whether this Routine was forcibly ended
     routineForceEnded = false;
-    Download_ConsentClock.reset();
+    Check_ConsentClock.reset();
     routineTimer.reset();
-    Download_ConsentMaxDurationReached = false;
+    Check_ConsentMaxDurationReached = false;
     // update component parameters for each repeat
-    psychoJS.window._renderer.view.style.display = 'none';
-    
-    var overlay = document.createElement('div');
-    overlay.id = 'consent-download-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;';
-    
-    overlay.innerHTML = '\
-    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;max-width:500px;text-align:center;">\
-      <h2 style="margin-top:0;">Consent Form</h2>\
-      <p>Please download the consent form below, sign it, and email the signed copy to email@dfki.com</strong> before continuing.</p>\
-      <a id="consent-download-link" href="resources/documents/consent_form.pdf" download="consent_form.pdf" \
-         style="display:inline-block;margin:20px 0;padding:12px 24px;background:#4CAF50;color:white;text-decoration:none;border-radius:4px;font-size:16px;">\
-         Download Consent Form\
-      </a>\
-      <br>\
-      <button id="consent-continue" style="margin-top:20px;padding:12px 24px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">\
-        I have downloaded and will email the form - Continue\
-      </button>\
-    </div>';
-    
-    document.body.appendChild(overlay);
-    
-    consentDone = false;
-    consentDownloadClicked = false;
-    
-    document.getElementById('consent-download-link').addEventListener('click', function () {
-        consentDownloadClicked = true;
-    });
-    
-    document.getElementById('consent-continue').addEventListener('click', function () {
-        document.body.removeChild(overlay);
-        psychoJS.window._renderer.view.style.display = 'block';
-        consentDone = true;
-    });
-    psychoJS.experiment.addData('Download_Consent.started', globalClock.getTime());
-    Download_ConsentMaxDuration = null
+    // reset accept_consent to account for continued clicks & clear times on/off
+    accept_consent.reset()
+    // reset end_study to account for continued clicks & clear times on/off
+    end_study.reset()
+    psychoJS.experiment.addData('Check_Consent.started', globalClock.getTime());
+    Check_ConsentMaxDuration = null
     // keep track of which components have finished
-    Download_ConsentComponents = [];
+    Check_ConsentComponents = [];
+    Check_ConsentComponents.push(consent_textbox);
+    Check_ConsentComponents.push(accept_consent);
+    Check_ConsentComponents.push(end_study);
     
-    Download_ConsentComponents.forEach( function(thisComponent) {
+    Check_ConsentComponents.forEach( function(thisComponent) {
       if ('status' in thisComponent)
         thisComponent.status = PsychoJS.Status.NOT_STARTED;
        });
@@ -970,15 +1037,113 @@ function Download_ConsentRoutineBegin(snapshot) {
 }
 
 
-function Download_ConsentRoutineEachFrame() {
+function Check_ConsentRoutineEachFrame() {
   return async function () {
-    //--- Loop for each frame of Routine 'Download_Consent' ---
+    //--- Loop for each frame of Routine 'Check_Consent' ---
     // get current time
-    t = Download_ConsentClock.getTime();
+    t = Check_ConsentClock.getTime();
     frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
     // update/draw components on each frame
-    if (consentDone) {
-        continueRoutine = false;
+    
+    // *consent_textbox* updates
+    if (t >= 0.0 && consent_textbox.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      consent_textbox.tStart = t;  // (not accounting for frame time here)
+      consent_textbox.frameNStart = frameN;  // exact frame index
+      
+      consent_textbox.setAutoDraw(true);
+    }
+    
+    
+    // if consent_textbox is active this frame...
+    if (consent_textbox.status === PsychoJS.Status.STARTED) {
+    }
+    
+    
+    // *accept_consent* updates
+    if (t >= 0 && accept_consent.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      accept_consent.tStart = t;  // (not accounting for frame time here)
+      accept_consent.frameNStart = frameN;  // exact frame index
+      
+      accept_consent.setAutoDraw(true);
+    }
+    
+    
+    // if accept_consent is active this frame...
+    if (accept_consent.status === PsychoJS.Status.STARTED) {
+    }
+    
+    if (accept_consent.status === PsychoJS.Status.STARTED) {
+      // check whether accept_consent has been pressed
+      if (accept_consent.isClicked) {
+        if (!accept_consent.wasClicked) {
+          // store time of first click
+          accept_consent.timesOn.push(accept_consent.clock.getTime());
+          // store time clicked until
+          accept_consent.timesOff.push(accept_consent.clock.getTime());
+        } else {
+          // update time clicked until;
+          accept_consent.timesOff[accept_consent.timesOff.length - 1] = accept_consent.clock.getTime();
+        }
+        if (!accept_consent.wasClicked) {
+          // end routine when accept_consent is clicked
+          continueRoutine = false;
+          
+        }
+        // if accept_consent is still clicked next frame, it is not a new click
+        accept_consent.wasClicked = true;
+      } else {
+        // if accept_consent is clicked next frame, it is a new click
+        accept_consent.wasClicked = false;
+      }
+    } else {
+      // keep clock at 0 if accept_consent hasn't started / has finished
+      accept_consent.clock.reset();
+      // if accept_consent is clicked next frame, it is a new click
+      accept_consent.wasClicked = false;
+    }
+    
+    // *end_study* updates
+    if (t >= 0 && end_study.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      end_study.tStart = t;  // (not accounting for frame time here)
+      end_study.frameNStart = frameN;  // exact frame index
+      
+      end_study.setAutoDraw(true);
+    }
+    
+    
+    // if end_study is active this frame...
+    if (end_study.status === PsychoJS.Status.STARTED) {
+    }
+    
+    if (end_study.status === PsychoJS.Status.STARTED) {
+      // check whether end_study has been pressed
+      if (end_study.isClicked) {
+        if (!end_study.wasClicked) {
+          // store time of first click
+          end_study.timesOn.push(end_study.clock.getTime());
+          // store time clicked until
+          end_study.timesOff.push(end_study.clock.getTime());
+        } else {
+          // update time clicked until;
+          end_study.timesOff[end_study.timesOff.length - 1] = end_study.clock.getTime();
+        }
+        if (!end_study.wasClicked) {
+          
+        }
+        // if end_study is still clicked next frame, it is not a new click
+        end_study.wasClicked = true;
+      } else {
+        // if end_study is clicked next frame, it is a new click
+        end_study.wasClicked = false;
+      }
+    } else {
+      // keep clock at 0 if end_study hasn't started / has finished
+      end_study.clock.reset();
+      // if end_study is clicked next frame, it is a new click
+      end_study.wasClicked = false;
     }
     // check for quit (typically the Esc key)
     if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
@@ -992,7 +1157,7 @@ function Download_ConsentRoutineEachFrame() {
     }
     
     continueRoutine = false;  // reverts to True if at least one component still running
-    Download_ConsentComponents.forEach( function(thisComponent) {
+    Check_ConsentComponents.forEach( function(thisComponent) {
       if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
         continueRoutine = true;
       }
@@ -1008,18 +1173,28 @@ function Download_ConsentRoutineEachFrame() {
 }
 
 
-function Download_ConsentRoutineEnd(snapshot) {
+var endExpNow;
+function Check_ConsentRoutineEnd(snapshot) {
   return async function () {
-    //--- Ending Routine 'Download_Consent' ---
-    Download_ConsentComponents.forEach( function(thisComponent) {
+    //--- Ending Routine 'Check_Consent' ---
+    Check_ConsentComponents.forEach( function(thisComponent) {
       if (typeof thisComponent.setAutoDraw === 'function') {
         thisComponent.setAutoDraw(false);
       }
     });
-    psychoJS.experiment.addData('Download_Consent.stopped', globalClock.getTime());
-    psychoJS.window._renderer.view.style.display = 'block';
-    psychoJS.experiment.addData('consent_download_clicked', true);
-    // the Routine "Download_Consent" was not non-slip safe, so reset the non-slip timer
+    psychoJS.experiment.addData('Check_Consent.stopped', globalClock.getTime());
+    psychoJS.experiment.addData('accept_consent.numClicks', accept_consent.numClicks);
+    psychoJS.experiment.addData('accept_consent.timesOn', accept_consent.timesOn);
+    psychoJS.experiment.addData('accept_consent.timesOff', accept_consent.timesOff);
+    psychoJS.experiment.addData('end_study.numClicks', end_study.numClicks);
+    psychoJS.experiment.addData('end_study.timesOn', end_study.timesOn);
+    psychoJS.experiment.addData('end_study.timesOff', end_study.timesOff);
+    // Run 'End Routine' code from end_study_code
+    if ((end_study.numClicks > 0)) {
+        endExpNow = true;
+    }
+    
+    // the Routine "Check_Consent" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
     // Routines running outside a loop should always advance the datafile row
@@ -1106,7 +1281,7 @@ function InstructionsRoutineEachFrame() {
     // if key_resp is active this frame...
     if (key_resp.status === PsychoJS.Status.STARTED) {
       let theseKeys = key_resp.getKeys({
-        keyList: typeof 'space' === 'string' ? ['space'] : 'space', 
+        keyList: typeof 'return' === 'string' ? ['return'] : 'return', 
         waitRelease: false
       });
       _key_resp_allKeys = _key_resp_allKeys.concat(theseKeys);
@@ -1694,6 +1869,7 @@ function Scene_PresentationRoutineBegin(snapshot) {
     Scene_PresentationComponents.push(scene_description);
     Scene_PresentationComponents.push(scene_image);
     Scene_PresentationComponents.push(key_resp_scene);
+    Scene_PresentationComponents.push(finish_scene_presentation);
     
     Scene_PresentationComponents.forEach( function(thisComponent) {
       if ('status' in thisComponent)
@@ -1757,7 +1933,7 @@ function Scene_PresentationRoutineEachFrame() {
     // if key_resp_scene is active this frame...
     if (key_resp_scene.status === PsychoJS.Status.STARTED) {
       let theseKeys = key_resp_scene.getKeys({
-        keyList: typeof 'space' === 'string' ? ['space'] : 'space', 
+        keyList: typeof 'return' === 'string' ? ['return'] : 'return', 
         waitRelease: false
       });
       _key_resp_scene_allKeys = _key_resp_scene_allKeys.concat(theseKeys);
@@ -1768,6 +1944,25 @@ function Scene_PresentationRoutineEachFrame() {
         // a response ends the routine
         continueRoutine = false;
       }
+    }
+    
+    
+    // *finish_scene_presentation* updates
+    if (t >= 0 && finish_scene_presentation.status === PsychoJS.Status.NOT_STARTED) {
+      // update params
+      finish_scene_presentation.setText('Press ENTER to continue', false);
+      // keep track of start time/frame for later
+      finish_scene_presentation.tStart = t;  // (not accounting for frame time here)
+      finish_scene_presentation.frameNStart = frameN;  // exact frame index
+      
+      finish_scene_presentation.setAutoDraw(true);
+    }
+    
+    
+    // if finish_scene_presentation is active this frame...
+    if (finish_scene_presentation.status === PsychoJS.Status.STARTED) {
+      // update params
+      finish_scene_presentation.setText('Press ENTER to continue', false);
     }
     
     // check for quit (typically the Esc key)
@@ -1955,7 +2150,7 @@ function Scene_DescriptionRoutineEachFrame() {
     }
     
     // Run 'Each Frame' code from continue_description
-    var text_length = (response_box.text) ? response_box.text.length : 0;
+    var text_length = (response_box.text) ? response_box.text.replace(/\s/g, '').length : 0;
     
     if (key_resp_description.keys === 'return' && text_length < 50) {
         key_resp_description.keys = [];
@@ -2202,33 +2397,45 @@ function Face_RankingRoutineBegin(snapshot) {
     console.log("Face ranking:", faceNumber);
     console.log("Folder:", folderName);
     console.log("Faces:", face1Path, face2Path, face3Path, face4Path, face5Path, face6Path);
+    image_1.setSize(aspectCorrectedSize(0.3, 0.3));
     image_1.setImage(face1Path);
+    image_2.setSize(aspectCorrectedSize(0.3, 0.3));
     image_2.setImage(face2Path);
+    image_3.setSize(aspectCorrectedSize(0.3, 0.3));
     image_3.setImage(face3Path);
+    image_4.setSize(aspectCorrectedSize(0.3, 0.3));
     image_4.setImage(face4Path);
+    image_5.setSize(aspectCorrectedSize(0.3, 0.3));
     image_5.setImage(face5Path);
+    image_6.setSize(aspectCorrectedSize(0.3, 0.3));
     image_6.setImage(face6Path);
+    pos_1.setSize(aspectCorrectedSize(0.32, 0.32));
+    pos_2.setSize(aspectCorrectedSize(0.32, 0.32));
+    pos_3.setSize(aspectCorrectedSize(0.32, 0.32));
+    pos_4.setSize(aspectCorrectedSize(0.32, 0.32));
+    pos_5.setSize(aspectCorrectedSize(0.32, 0.32));
+    pos_6.setSize(aspectCorrectedSize(0.32, 0.32));
     // Run 'Begin Routine' code from snap_pictures
     picked = [image_1, image_2, image_3, image_4, image_5, image_6];
     
     // original positions
     originalPositions = {
-        "image_1": [-0.75, -0.25],
-        "image_2": [-0.45, -0.25],
-        "image_3": [-0.15, -0.25],
-        "image_4": [ 0.15, -0.25],
-        "image_5": [ 0.45, -0.25],
-        "image_6": [ 0.75, -0.25]
+        "image_1": [-0.85, -0.25],
+        "image_2": [-0.51, -0.25],
+        "image_3": [-0.17, -0.25],
+        "image_4": [ 0.17, -0.25],
+        "image_5": [ 0.51, -0.25],
+        "image_6": [ 0.85, -0.25]
     };
     
     // ranking slots
     locations = [
-        [-0.75, 0.25],
-        [-0.45, 0.25],
-        [-0.15, 0.25],
-        [ 0.15, 0.25],
-        [ 0.45, 0.25],
-        [ 0.75, 0.25]
+        [-0.85, 0.25],
+        [-0.51, 0.25],
+        [-0.17, 0.25],
+        [ 0.17, 0.25],
+        [ 0.51, 0.25],
+        [ 0.85, 0.25]
     ];
     
     slotNames = [
@@ -2260,7 +2467,7 @@ function Face_RankingRoutineBegin(snapshot) {
     gotValidClick = false; // until a click is received
     // Run 'Begin Routine' code from timer
     task_timer_start = globalClock.getTime();
-    task_timer_duration = 20;
+    task_timer_duration = 40;
     finish_ranking_key.keys = undefined;
     finish_ranking_key.rt = undefined;
     _finish_ranking_key_allKeys = [];
@@ -2974,7 +3181,7 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
         return rows.join('\n');
     }
     
-    var participantID = expInfo["participant"] || "unknown";
+    var participantID = expInfo["Initials"] + "" + expInfo["Age"];
     var sceneNum = (Scene_Loop.thisN !== undefined ? Scene_Loop.thisN : 0) + 1;
     var filename = "participant_" + participantID + "_" + expName.replace(/ /g, "_") + "_scene_" + sceneNum + ".csv";
     
@@ -4289,8 +4496,9 @@ function ExitRoutineEnd(snapshot) {
     
     // filename must be unique
     let filename =
-        psychoJS.experiment.extraInfo.participant +
+        psychoJS.experiment.extraInfo.Initials +
         "_" +
+        psychoJS.experiment.extraInfo.Age
         Date.now() +
         ".csv";
         
