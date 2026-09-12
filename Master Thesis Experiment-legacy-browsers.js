@@ -5,10 +5,7 @@
 
 // store info about the experiment session:
 let expName = 'Master Thesis Experiment';  // from the Builder filename that created this script
-let expInfo = {
-    'Initials': '',
-    'Age': '',
-};
+let expInfo = {};
 let PILOTING = util.getUrlParameters().has('__pilotToken');
 
 // Start code blocks for 'Before Experiment'
@@ -67,15 +64,21 @@ psychoJS.scheduleCondition(function() { return (psychoJS.gui.dialogComponent.but
 // flowScheduler gets run if the participants presses OK
 flowScheduler.add(updateInfo); // add timeStamp
 flowScheduler.add(experimentInit);
+flowScheduler.add(Check_ConsentRoutineBegin());
+flowScheduler.add(Check_ConsentRoutineEachFrame());
+flowScheduler.add(Check_ConsentRoutineEnd());
+flowScheduler.add(Participant_CodeRoutineBegin());
+flowScheduler.add(Participant_CodeRoutineEachFrame());
+flowScheduler.add(Participant_CodeRoutineEnd());
+flowScheduler.add(DemographicsRoutineBegin());
+flowScheduler.add(DemographicsRoutineEachFrame());
+flowScheduler.add(DemographicsRoutineEnd());
 const test_trialsLoopScheduler = new Scheduler(psychoJS);
 flowScheduler.add(test_trialsLoopBegin(test_trialsLoopScheduler));
 flowScheduler.add(test_trialsLoopScheduler);
 flowScheduler.add(test_trialsLoopEnd);
 
 
-flowScheduler.add(Check_ConsentRoutineBegin());
-flowScheduler.add(Check_ConsentRoutineEachFrame());
-flowScheduler.add(Check_ConsentRoutineEnd());
 flowScheduler.add(InstructionsRoutineBegin());
 flowScheduler.add(InstructionsRoutineEachFrame());
 flowScheduler.add(InstructionsRoutineEnd());
@@ -110,9 +113,6 @@ flowScheduler.add(IAT_blocksLoopEnd);
 
 
 
-flowScheduler.add(QuestionnaireRoutineBegin());
-flowScheduler.add(QuestionnaireRoutineEachFrame());
-flowScheduler.add(QuestionnaireRoutineEnd());
 flowScheduler.add(ExitRoutineBegin());
 flowScheduler.add(ExitRoutineEachFrame());
 flowScheduler.add(ExitRoutineEnd());
@@ -128,12 +128,16 @@ psychoJS.start({
     // resources:
     {'name': 'resources/test/test.xlsx', 'path': 'resources/test/test.xlsx'},
     {'name': 'resources/test/anordnung_1/scene.jpg', 'path': 'resources/test/anordnung_1/scene.jpg'},
+    {'name': 'resources/test/anordnung_1/face.png', 'path': 'resources/test/anordnung_1/face.png'},
     {'name': 'resources/test/anordnung_1/item.jpg', 'path': 'resources/test/anordnung_1/item.jpg'},
     {'name': 'resources/test/anordnung_2/scene.jpg', 'path': 'resources/test/anordnung_2/scene.jpg'},
+    {'name': 'resources/test/anordnung_2/face.png', 'path': 'resources/test/anordnung_2/face.png'},
     {'name': 'resources/test/anordnung_2/item.jpg', 'path': 'resources/test/anordnung_2/item.jpg'},
     {'name': 'resources/test/anordnung_3/scene.jpg', 'path': 'resources/test/anordnung_3/scene.jpg'},
+    {'name': 'resources/test/anordnung_3/face.png', 'path': 'resources/test/anordnung_3/face.png'},
     {'name': 'resources/test/anordnung_3/item.jpg', 'path': 'resources/test/anordnung_3/item.jpg'},
     {'name': 'resources/test/anordnung_4/scene.jpg', 'path': 'resources/test/anordnung_4/scene.jpg'},
+    {'name': 'resources/test/anordnung_4/face.png', 'path': 'resources/test/anordnung_4/face.png'},
     {'name': 'resources/test/anordnung_4/item.jpg', 'path': 'resources/test/anordnung_4/item.jpg'},
     {'name': 'resources/iat/instructs.xlsx', 'path': 'resources/iat/instructs.xlsx'},
     {'name': 'resources/iat/blocks_order.xlsx', 'path': 'resources/iat/blocks_order.xlsx'},
@@ -239,7 +243,7 @@ async function updateInfo() {
   
 
   
-  psychoJS.experiment.dataFileName = (("." + "/") + `data//${expInfo["Initials"]}_${expName}_${expInfo["date"]}`);
+  psychoJS.experiment.dataFileName = (("." + "/") + `data//${participant_code}_${expName}_${expInfo["date"]}`);
   psychoJS.experiment.field_separator = '\t';
 
 
@@ -247,16 +251,18 @@ async function updateInfo() {
 }
 
 
+var Check_ConsentClock;
+var text_placeholder2;
+var Participant_CodeClock;
+var text_placeholder;
+var DemographicsClock;
+var text_placeholder3;
 var new_sceneClock;
 var scene;
 var face;
 var item;
 var description_2;
 var key_resp_4;
-var Check_ConsentClock;
-var consent_textbox;
-var accept_consent;
-var end_study;
 var InstructionsClock;
 var instruction_text;
 var key_resp;
@@ -321,13 +327,54 @@ var button_right;
 var trial_label_right;
 var IAT_feedbackClock;
 var feedback_msg;
-var QuestionnaireClock;
 var ExitClock;
 var exit_message;
 var key_resp_2;
 var globalClock;
 var routineTimer;
 async function experimentInit() {
+  // Initialize components for Routine "Check_Consent"
+  Check_ConsentClock = new util.Clock();
+  text_placeholder2 = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'text_placeholder2',
+    text: '',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: 0.0,
+    depth: 0.0 
+  });
+  
+  // Initialize components for Routine "Participant_Code"
+  Participant_CodeClock = new util.Clock();
+  text_placeholder = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'text_placeholder',
+    text: '',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: undefined,
+    depth: 0.0 
+  });
+  
+  // Initialize components for Routine "Demographics"
+  DemographicsClock = new util.Clock();
+  text_placeholder3 = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'text_placeholder3',
+    text: '',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: 0.0,
+    depth: -1.0 
+  });
+  
   // Initialize components for Routine "new_scene"
   new_sceneClock = new util.Clock();
   scene = new visual.ImageStim({
@@ -396,82 +443,6 @@ async function experimentInit() {
   });
   
   key_resp_4 = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
-  
-  // Initialize components for Routine "Check_Consent"
-  Check_ConsentClock = new util.Clock();
-  consent_textbox = new visual.TextBox({
-    win: psychoJS.window,
-    name: 'consent_textbox',
-    text: 'This study investigates how different contextual information influences the perception and evaluation of faces. Your responses will be anonymized and used for scientific purposes, and may be included in academic publications.\n \nWhat You Will Do:\n- Read this information sheet and provide informed consent\n- Evaluate and rank face images together with contextual information\n- Complete a short demographic questionnaire\n- Complete a brief debriefing questionnaire\n \nThis study takes approximately 60 minutes.\n \nParticipation is voluntary. You may skip individual tasks or withdraw from the study at any time without giving a reason and without any disadvantage.\n \nYour data will be processed confidentially and used exclusively for scientific research purposes.\n \nSarah Boidoglou & Savas Großmann (Study Leads) — sarah.boidoglou@dfki.de, savas.grossmann@dfki.de\nMansi Sharma (Supervision) — mansi.sharma@dfki.de\nDFKI GmbH, Kesselhaus in der Lanolinfabrik, Salzufer 15/16, 10587 Berlin, Germany\n \nBy agreeing below, you confirm that you have read and understood this information and voluntarily consent to participate in this study.',
-    placeholder: 'Type here...',
-    font: 'Arial',
-    pos: [0, 0.1], 
-    draggable: false,
-    letterHeight: 0.05,
-    lineSpacing: 1.0,
-    size: [1.6, 1.4],  units: undefined, 
-    ori: 0.0,
-    color: 'white', colorSpace: 'rgb',
-    fillColor: undefined, borderColor: 'black',
-    languageStyle: 'LTR',
-    bold: false, italic: false,
-    opacity: undefined,
-    padding: 0.0,
-    alignment: 'top-left',
-    overflow: 'scroll',
-    editable: false,
-    multiline: true,
-    anchor: 'center',
-    depth: 0.0 
-  });
-  
-  accept_consent = new visual.ButtonStim({
-    win: psychoJS.window,
-    name: 'accept_consent',
-    text: 'I Accept',
-    font: 'Arvo',
-    pos: [(- 0.6), (- 0.85)],
-    size: [0.35, 0.15],
-    padding: null,
-    anchor: 'center',
-    ori: 0.0,
-    units: psychoJS.window.units,
-    color: 'white',
-    fillColor: 'darkgrey',
-    borderColor: null,
-    colorSpace: 'rgb',
-    borderWidth: 0.0,
-    opacity: null,
-    depth: -1,
-    letterHeight: 0.05,
-    bold: true,
-    italic: false,
-  });
-  accept_consent.clock = new util.Clock();
-  
-  end_study = new visual.ButtonStim({
-    win: psychoJS.window,
-    name: 'end_study',
-    text: 'I do not agree',
-    font: 'Arvo',
-    pos: [0.6, (- 0.85)],
-    size: [0.35, 0.15],
-    padding: null,
-    anchor: 'center',
-    ori: 0.0,
-    units: psychoJS.window.units,
-    color: 'white',
-    fillColor: 'darkgrey',
-    borderColor: null,
-    colorSpace: 'rgb',
-    borderWidth: 0.0,
-    opacity: null,
-    depth: -2,
-    letterHeight: 0.05,
-    bold: true,
-    italic: false,
-  });
-  end_study.clock = new util.Clock();
   
   // Initialize components for Routine "Instructions"
   InstructionsClock = new util.Clock();
@@ -1072,8 +1043,6 @@ async function experimentInit() {
     depth: -1.0 
   });
   
-  // Initialize components for Routine "Questionnaire"
-  QuestionnaireClock = new util.Clock();
   // Initialize components for Routine "Exit"
   ExitClock = new util.Clock();
   exit_message = new visual.TextStim({
@@ -1095,6 +1064,777 @@ async function experimentInit() {
   routineTimer = new util.CountdownTimer();  // to track time remaining of each (non-slip) routine
   
   return Scheduler.Event.NEXT;
+}
+
+
+var t;
+var frameN;
+var continueRoutine;
+var routineForceEnded;
+var Check_ConsentMaxDurationReached;
+var consent_given;
+var consent_declined;
+var consent_done;
+var Check_ConsentMaxDuration;
+var Check_ConsentComponents;
+function Check_ConsentRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'Check_Consent' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    Check_ConsentClock.reset();
+    routineTimer.reset();
+    Check_ConsentMaxDurationReached = false;
+    // update component parameters for each repeat
+    // Hide the PsychoJS canvas temporarily
+    psychoJS.window._renderer.view.style.display = 'none';
+    
+    var overlay = document.createElement('div');
+    overlay.id = 'consent-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
+    
+    // global vars
+    consent_given = false;
+    consent_declined = false;
+    consent_done = false;
+    
+    overlay.innerHTML = '\
+    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:600px;max-height:90vh;overflow-y:auto;">\
+      <h2 style="margin-top:0;">Informed Consent</h2>\
+      <div style="line-height:1.6;font-size:15px;">\
+        <p>This study investigates how different contextual information influences the perception and evaluation of faces. Your responses will be anonymized and used for scientific purposes, and may be included in academic publications.</p>\
+        <p><strong>What You Will Do:</strong></p>\
+        <ul style="margin-top:0;padding-left:20px;">\
+          <li>Read this information sheet and provide informed consent</li>\
+          <li>Evaluate and rank face images together with contextual information</li>\
+          <li>Complete a short demographic questionnaire</li>\
+          <li>Complete a brief debriefing questionnaire</li>\
+        </ul>\
+        <p>This study takes approximately 60 minutes.</p>\
+        <p>Participation is voluntary. You may skip individual tasks or withdraw from the study at any time without giving a reason and without any disadvantage.</p>\
+        <p>Your data will be processed confidentially and used exclusively for scientific research purposes.</p>\
+        <p>Sarah Boidoglou &amp; Savas Gro&szlig;mann (Study Leads) &mdash; sarah.boidoglou@dfki.de, savas.grossmann@dfki.de<br>\
+        Mansi Sharma (Supervision) &mdash; mansi.sharma@dfki.de<br>\
+        DFKI GmbH, Kesselhaus in der Lanolinfabrik, Salzufer 15/16, 10587 Berlin, Germany</p>\
+        <p>By agreeing below, you confirm that you have read and understood this information and voluntarily consent to participate in this study.</p>\
+      </div>\
+      <div style="display:flex;gap:15px;margin-top:25px;">\
+        <button id="consent-decline" style="flex:1;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">I do not agree</button>\
+        <button id="consent-accept" style="flex:1;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">I Accept</button>\
+      </div>\
+    </div>';
+    
+    document.body.appendChild(overlay);
+    
+    document.getElementById('consent-accept').addEventListener('click', function() {
+        consent_given = true;
+        document.body.removeChild(overlay);
+        psychoJS.window._renderer.view.style.display = 'block';
+        consent_done = true;
+    });
+    
+    document.getElementById('consent-decline').addEventListener('click', function() {
+        consent_declined = true;
+        overlay.querySelector('div').innerHTML =
+            '<h2 style="margin-top:0;">Thank you</h2>' +
+            '<p>You have chosen not to participate. The experiment will now close.</p>';
+    
+        // NOTE: adjust this if your project has its own quit function
+        // (e.g. "quitPsychoJS('', false)") instead of calling psychoJS.quit() directly.
+        setTimeout(function() {
+            psychoJS.quit({message: 'Participant did not consent.', isCompleted: false});
+        }, 3000);
+    });
+    
+    // get screensize
+    expInfo['windowWidth'] = window.innerWidth;
+    expInfo['windowHeight'] = window.innerHeight;
+    psychoJS.experiment.addData('Check_Consent.started', globalClock.getTime());
+    Check_ConsentMaxDuration = null
+    // keep track of which components have finished
+    Check_ConsentComponents = [];
+    Check_ConsentComponents.push(text_placeholder2);
+    
+    Check_ConsentComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+       });
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function Check_ConsentRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'Check_Consent' ---
+    // get current time
+    t = Check_ConsentClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    
+    // *text_placeholder2* updates
+    if (t >= 0.0 && text_placeholder2.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      text_placeholder2.tStart = t;  // (not accounting for frame time here)
+      text_placeholder2.frameNStart = frameN;  // exact frame index
+      
+      text_placeholder2.setAutoDraw(true);
+    }
+    
+    
+    // if text_placeholder2 is active this frame...
+    if (text_placeholder2.status === PsychoJS.Status.STARTED) {
+    }
+    
+    if (consent_done) {
+        continueRoutine = false;
+    }
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    Check_ConsentComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+      }
+    });
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+function Check_ConsentRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'Check_Consent' ---
+    Check_ConsentComponents.forEach( function(thisComponent) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    });
+    psychoJS.experiment.addData('Check_Consent.stopped', globalClock.getTime());
+    psychoJS.experiment.addData('consent_given', consent_given);
+    // the Routine "Check_Consent" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+var Participant_CodeMaxDurationReached;
+var participant_code;
+var pcode_done;
+var Participant_CodeMaxDuration;
+var Participant_CodeComponents;
+function Participant_CodeRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'Participant_Code' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    Participant_CodeClock.reset();
+    routineTimer.reset();
+    Participant_CodeMaxDurationReached = false;
+    // update component parameters for each repeat
+    // Hide the PsychoJS canvas temporarily
+    psychoJS.window._renderer.view.style.display = 'none';
+    
+    var overlay = document.createElement('div');
+    overlay.id = 'pcode-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
+    
+    // global vars
+    participant_code = '';
+    pcode_done = false;
+    
+    overlay.innerHTML = '\
+    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
+      <h2 style="margin-top:0;">Your Participant Code</h2>\
+      <p style="line-height:1.5;">To keep your data strictly confidential while still allowing you to request its deletion later, please generate your unique participant code below. Answer the questions honestly and consistently &ndash; you will need to reproduce the exact same code if you ever want your data removed.</p>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">First letter of your mother\'s first name</label>\
+        <input id="pcode-mother" type="text" maxlength="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;text-transform:uppercase;">\
+      </div>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">First letter of your father\'s first name</label>\
+        <input id="pcode-father" type="text" maxlength="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;text-transform:uppercase;">\
+      </div>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">First letter of the city/town you were born in</label>\
+        <input id="pcode-city" type="text" maxlength="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;text-transform:uppercase;">\
+      </div>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">Day of your birth (1&ndash;31)</label>\
+        <input id="pcode-day" type="number" min="1" max="31" step="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
+      </div>\
+    \
+      <div style="margin-bottom:30px;">\
+        <label style="display:block;margin-bottom:8px;">Year of your birth (e.g., 1998)</label>\
+        <input id="pcode-year" type="number" min="1900" max="2020" step="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
+      </div>\
+    \
+      <button id="pcode-generate" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Generate my code</button>\
+      <p id="pcode-error" style="color:red;display:none;margin-top:10px;">Please fill in all fields correctly.</p>\
+    \
+      <div id="pcode-result-wrap" style="display:none;margin-top:25px;padding-top:20px;border-top:1px solid #444;">\
+        <p>Your participant code is:</p>\
+        <p id="pcode-display" style="font-size:28px;font-weight:bold;letter-spacing:4px;text-align:center;background:#111;padding:15px;border-radius:4px;"></p>\
+        <p style="color:#ffcc66;">Please write this code down now. You will need it if you ever want to request deletion of your data.</p>\
+        <label style="display:flex;align-items:center;gap:8px;margin-top:15px;cursor:pointer;">\
+          <input id="pcode-confirm" type="checkbox" style="width:18px;height:18px;">\
+          I have saved my participant code\
+        </label>\
+        <button id="pcode-continue" style="width:100%;padding:12px;margin-top:15px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;" disabled>Continue</button>\
+      </div>\
+    </div>';
+    
+    document.body.appendChild(overlay);
+    
+    document.getElementById('pcode-generate').addEventListener('click', function() {
+        var mother = document.getElementById('pcode-mother').value.trim();
+        var father = document.getElementById('pcode-father').value.trim();
+        var city = document.getElementById('pcode-city').value.trim();
+        var day = document.getElementById('pcode-day').value;
+        var year = document.getElementById('pcode-year').value;
+    
+        var dayNum = parseInt(day, 10);
+        var yearNum = parseInt(year, 10);
+    
+        var valid = /^[A-Za-z]$/.test(mother) &&
+                    /^[A-Za-z]$/.test(father) &&
+                    /^[A-Za-z]$/.test(city) &&
+                    !isNaN(dayNum) && dayNum >= 1 && dayNum <= 31 &&
+                    !isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2020;
+    
+        if (!valid) {
+            document.getElementById('pcode-error').style.display = 'block';
+            document.getElementById('pcode-result-wrap').style.display = 'none';
+            return;
+        }
+        document.getElementById('pcode-error').style.display = 'none';
+    
+        var dayPadded = String(dayNum).padStart(2, '0');
+        var yearLastDigit = String(yearNum).slice(-1);
+    
+        var code = (mother + father + city).toUpperCase() + dayPadded + yearLastDigit;
+    
+        participant_code = code;
+        document.getElementById('pcode-display').textContent = code;
+        document.getElementById('pcode-result-wrap').style.display = 'block';
+        document.getElementById('pcode-confirm').checked = false;
+        document.getElementById('pcode-continue').disabled = true;
+    });
+    
+    document.getElementById('pcode-confirm').addEventListener('change', function() {
+        document.getElementById('pcode-continue').disabled = !this.checked;
+    });
+    
+    document.getElementById('pcode-continue').addEventListener('click', function() {
+        document.body.removeChild(overlay);
+        psychoJS.window._renderer.view.style.display = 'block';
+        pcode_done = true;
+    });
+    psychoJS.experiment.addData('Participant_Code.started', globalClock.getTime());
+    Participant_CodeMaxDuration = null
+    // keep track of which components have finished
+    Participant_CodeComponents = [];
+    Participant_CodeComponents.push(text_placeholder);
+    
+    Participant_CodeComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+       });
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function Participant_CodeRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'Participant_Code' ---
+    // get current time
+    t = Participant_CodeClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    
+    // *text_placeholder* updates
+    if (t >= 0.0 && text_placeholder.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      text_placeholder.tStart = t;  // (not accounting for frame time here)
+      text_placeholder.frameNStart = frameN;  // exact frame index
+      
+      text_placeholder.setAutoDraw(true);
+    }
+    
+    
+    // if text_placeholder is active this frame...
+    if (text_placeholder.status === PsychoJS.Status.STARTED) {
+    }
+    
+    if (pcode_done) {
+        continueRoutine = false;
+    }
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    Participant_CodeComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+      }
+    });
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+function Participant_CodeRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'Participant_Code' ---
+    Participant_CodeComponents.forEach( function(thisComponent) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    });
+    psychoJS.experiment.addData('Participant_Code.stopped', globalClock.getTime());
+    psychoJS.experiment.addData('participant_code', participant_code);
+    // the Routine "Participant_Code" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+var DemographicsMaxDurationReached;
+var demo_age;
+var demo_gender;
+var demo_gender_self;
+var demo_native_english;
+var demo_english_level;
+var demo_vision;
+var demo_education;
+var demo_student;
+var demo_field_of_study;
+var demo_ethnicity;
+var demo_country;
+var demo_done;
+var demo_screenout;
+var demo_screenout_reason;
+var DemographicsMaxDuration;
+var DemographicsComponents;
+function DemographicsRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'Demographics' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    DemographicsClock.reset();
+    routineTimer.reset();
+    DemographicsMaxDurationReached = false;
+    // update component parameters for each repeat
+    // Hide the PsychoJS canvas temporarily
+    psychoJS.window._renderer.view.style.display = 'none';
+    
+    // Create overlay form
+    var overlay = document.createElement('div');
+    overlay.id = 'demo-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
+    
+    // global vars
+    demo_age = '';
+    demo_gender = '';
+    demo_gender_self = '';
+    demo_native_english = '';
+    demo_english_level = '';
+    demo_vision = '';
+    demo_education = '';
+    demo_student = '';
+    demo_field_of_study = '';
+    demo_ethnicity = '';
+    demo_country = '';
+    demo_done = false;
+    demo_screenout = false;
+    demo_screenout_reason = '';
+    
+    overlay.innerHTML = '\
+    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
+      <h2 style="margin-top:0;">Demographics</h2>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">Age</label>\
+        <input id="demo-age" type="number" min="1" max="100" step="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
+      </div>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">Gender</label>\
+        <select id="demo-gender" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+          <option value="female">Female</option>\
+          <option value="male">Male</option>\
+          <option value="non_binary">Non-binary / Third gender</option>\
+          <option value="self_describe">Prefer to self-describe</option>\
+          <option value="prefer_not">Prefer not to say</option>\
+        </select>\
+      </div>\
+      <div id="demo-gender-self-wrap" style="display:none;margin-bottom:20px;margin-top:-10px;">\
+        <label style="display:block;margin-bottom:8px;">Please self-describe</label>\
+        <input id="demo-gender-self" type="text" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
+      </div>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">Is English your first / native language?</label>\
+        <select id="demo-native" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+          <option value="yes">Yes</option>\
+          <option value="no">No</option>\
+        </select>\
+      </div>\
+      <div id="demo-english-level-wrap" style="display:none;margin-bottom:20px;margin-top:-10px;">\
+        <label style="display:block;margin-bottom:8px;">Self-rated English proficiency</label>\
+        <select id="demo-english-level" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+          <option value="A1">A1</option>\
+          <option value="A2">A2</option>\
+          <option value="B1">B1</option>\
+          <option value="B2">B2</option>\
+          <option value="C1">C1</option>\
+          <option value="C2">C2</option>\
+          <option value="native_like">Native-like</option>\
+        </select>\
+      </div>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">Do you have normal or corrected-to-normal vision (e.g., wearing glasses/contacts)?</label>\
+        <select id="demo-vision" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+          <option value="yes">Yes</option>\
+          <option value="no">No</option>\
+        </select>\
+      </div>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">Highest level of education</label>\
+        <select id="demo-education" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+          <option value="high_school">High school diploma / Secondary school</option>\
+          <option value="some_college">Some college / university</option>\
+          <option value="bachelor">Bachelor\'s degree</option>\
+          <option value="master">Master\'s degree / Graduate diploma</option>\
+          <option value="doctorate">Doctorate (PhD / MD)</option>\
+          <option value="other">Other</option>\
+        </select>\
+      </div>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">Are you currently a university student?</label>\
+        <select id="demo-student" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+          <option value="yes">Yes</option>\
+          <option value="no">No</option>\
+        </select>\
+      </div>\
+      <div id="demo-field-wrap" style="display:none;margin-bottom:20px;margin-top:-10px;">\
+        <label style="display:block;margin-bottom:8px;">Field of study</label>\
+        <select id="demo-field" style="width:100%;padding:8px;font-size:16px;border-radius:4px;margin-bottom:8px;">\
+          <option value="">-- Select --</option>\
+          <option value="natural_sciences">Natural Sciences</option>\
+          <option value="engineering">Engineering / Technology</option>\
+          <option value="computer_science">Computer Science / IT</option>\
+          <option value="social_sciences">Social Sciences</option>\
+          <option value="psychology">Psychology</option>\
+          <option value="humanities">Humanities</option>\
+          <option value="medicine_health">Medicine / Health Sciences</option>\
+          <option value="business_economics">Business / Economics</option>\
+          <option value="law">Law</option>\
+          <option value="arts">Arts / Design</option>\
+          <option value="education">Education</option>\
+          <option value="other">Other</option>\
+        </select>\
+        <input id="demo-field-other" type="text" placeholder="Please specify" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;display:none;">\
+      </div>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">Ethnic background</label>\
+        <select id="demo-race" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+          <option value="white">White / Caucasian</option>\
+          <option value="middle_eastern">Middle Eastern / Arab / North African</option>\
+          <option value="black">Black / African descent</option>\
+          <option value="asian">Asian</option>\
+          <option value="hispanic">Hispanic / Latino</option>\
+          <option value="multiracial">Multiracial</option>\
+          <option value="prefer_not">Prefer not to say</option>\
+        </select>\
+      </div>\
+    \
+      <div style="margin-bottom:30px;">\
+        <label style="display:block;margin-bottom:8px;">In which country do you currently reside?</label>\
+        <input id="demo-country" type="text" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
+      </div>\
+    \
+      <button id="demo-submit" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
+      <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer all questions.</p>\
+    </div>';
+    
+    document.body.appendChild(overlay);
+    
+    // --- conditional field toggling ---
+    document.getElementById('demo-gender').addEventListener('change', function() {
+        document.getElementById('demo-gender-self-wrap').style.display =
+            (this.value === 'self_describe') ? 'block' : 'none';
+    });
+    
+    document.getElementById('demo-native').addEventListener('change', function() {
+        document.getElementById('demo-english-level-wrap').style.display =
+            (this.value === 'no') ? 'block' : 'none';
+    });
+    
+    document.getElementById('demo-student').addEventListener('change', function() {
+        document.getElementById('demo-field-wrap').style.display =
+            (this.value === 'yes') ? 'block' : 'none';
+    });
+    
+    document.getElementById('demo-field').addEventListener('change', function() {
+        document.getElementById('demo-field-other').style.display =
+            (this.value === 'other') ? 'block' : 'none';
+    });
+    
+    // --- helper: replace overlay content with a screen-out message and quit ---
+    function demoScreenOut(reason) {
+        demo_screenout = true;
+        demo_screenout_reason = reason;
+        overlay.querySelector('div').innerHTML =
+            '<h2 style="margin-top:0;">Thank you</h2>' +
+            '<p>' + reason + '</p>' +
+            '<p>Unfortunately you do not meet the eligibility criteria for this study. The experiment will now close.</p>';
+    
+        // NOTE: adjust this to match however your experiment normally ends.
+        // If your Builder project has an auto-generated quit function
+        // (e.g. "quitPsychoJS('', false)"), call that instead of psychoJS.quit().
+        setTimeout(function() {
+            psychoJS.quit({message: reason, isCompleted: false});
+        }, 4000);
+    }
+    
+    document.getElementById('demo-submit').addEventListener('click', function() {
+        var age = document.getElementById('demo-age').value;
+        var gender = document.getElementById('demo-gender').value;
+        var genderSelf = document.getElementById('demo-gender-self').value;
+        var nativeEnglish = document.getElementById('demo-native').value;
+        var englishLevel = document.getElementById('demo-english-level').value;
+        var vision = document.getElementById('demo-vision').value;
+        var education = document.getElementById('demo-education').value;
+        var student = document.getElementById('demo-student').value;
+        var field = document.getElementById('demo-field').value;
+        var fieldOther = document.getElementById('demo-field-other').value;
+        var race = document.getElementById('demo-race').value;
+        var country = document.getElementById('demo-country').value.trim();
+    
+        // --- required-field validation ---
+        var missing = !age || !gender || !nativeEnglish || !vision ||
+                      !education || !student || !race || !country;
+    
+        if (gender === 'self_describe' && !genderSelf.trim()) missing = true;
+        if (nativeEnglish === 'no' && !englishLevel) missing = true;
+        if (student === 'yes' && !field) missing = true;
+        if (student === 'yes' && field === 'other' && !fieldOther.trim()) missing = true;
+    
+        var ageNum = parseInt(age, 10);
+        if (!age || isNaN(ageNum) || ageNum < 1 || ageNum > 100) missing = true;
+    
+        if (missing) {
+            document.getElementById('demo-error').style.display = 'block';
+            return;
+        }
+    
+        // --- eligibility / screen-out checks ---
+        if (ageNum < 18) {
+            document.body.removeChild(overlay) || true; // no-op guard, overlay stays for message
+            demoScreenOut('You must be 18 years or older to participate in this study.');
+            return;
+        }
+    
+        if (nativeEnglish === 'no') {
+            var levelOrder = {A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6, native_like: 7};
+            if (levelOrder[englishLevel] < levelOrder['B2']) {
+                demoScreenOut('This study requires an English proficiency of at least B2.');
+                return;
+            }
+        }
+    
+        // --- store in global vars, save in RoutineEnd ---
+        demo_age = ageNum;
+        demo_gender = (gender === 'self_describe') ? genderSelf.trim() : gender;
+        demo_native_english = nativeEnglish;
+        demo_english_level = (nativeEnglish === 'no') ? englishLevel : 'native';
+        demo_vision = vision;
+        demo_education = education;
+        demo_student = student;
+        demo_field_of_study = (student === 'yes') ? ((field === 'other') ? fieldOther.trim() : field) : '';
+        demo_ethnicity = race;
+        demo_country = country;
+    
+        // clean up
+        document.body.removeChild(overlay);
+        psychoJS.window._renderer.view.style.display = 'block';
+        demo_done = true;
+    });
+    psychoJS.experiment.addData('Demographics.started', globalClock.getTime());
+    DemographicsMaxDuration = null
+    // keep track of which components have finished
+    DemographicsComponents = [];
+    DemographicsComponents.push(text_placeholder3);
+    
+    DemographicsComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+       });
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function DemographicsRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'Demographics' ---
+    // get current time
+    t = DemographicsClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    if (demo_done) {
+        continueRoutine = false;
+    }
+    
+    // *text_placeholder3* updates
+    if (t >= 0.0 && text_placeholder3.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      text_placeholder3.tStart = t;  // (not accounting for frame time here)
+      text_placeholder3.frameNStart = frameN;  // exact frame index
+      
+      text_placeholder3.setAutoDraw(true);
+    }
+    
+    
+    // if text_placeholder3 is active this frame...
+    if (text_placeholder3.status === PsychoJS.Status.STARTED) {
+    }
+    
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    DemographicsComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+      }
+    });
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+function DemographicsRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'Demographics' ---
+    DemographicsComponents.forEach( function(thisComponent) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    });
+    psychoJS.experiment.addData('Demographics.stopped', globalClock.getTime());
+    // ensure canvas is visible again in case something went wrong
+    psychoJS.window._renderer.view.style.display = 'block';
+    // save questionnaire data
+    psychoJS.experiment.addData('age', demo_age);
+    psychoJS.experiment.addData('gender', demo_gender);
+    psychoJS.experiment.addData('native_english', demo_native_english);
+    psychoJS.experiment.addData('english_level', demo_english_level);
+    psychoJS.experiment.addData('vision', demo_vision);
+    psychoJS.experiment.addData('education', demo_education);
+    psychoJS.experiment.addData('student', demo_student);
+    psychoJS.experiment.addData('field_of_study', demo_field_of_study);
+    psychoJS.experiment.addData('ethnic_background', demo_ethnicity);
+    psychoJS.experiment.addData('country', demo_country);
+    psychoJS.experiment.nextEntry();
+    // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    // the Routine "Demographics" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
 }
 
 
@@ -1498,10 +2238,6 @@ function IAT_blocksLoopEndIteration(scheduler, snapshot) {
 }
 
 
-var t;
-var frameN;
-var continueRoutine;
-var routineForceEnded;
 var new_sceneMaxDurationReached;
 var _key_resp_4_allKeys;
 var new_sceneMaxDuration;
@@ -1692,213 +2428,6 @@ function new_sceneRoutineEnd(snapshot) {
     
     key_resp_4.stop();
     // the Routine "new_scene" was not non-slip safe, so reset the non-slip timer
-    routineTimer.reset();
-    
-    // Routines running outside a loop should always advance the datafile row
-    if (currentLoop === psychoJS.experiment) {
-      psychoJS.experiment.nextEntry(snapshot);
-    }
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-var Check_ConsentMaxDurationReached;
-var Check_ConsentMaxDuration;
-var Check_ConsentComponents;
-function Check_ConsentRoutineBegin(snapshot) {
-  return async function () {
-    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
-    
-    //--- Prepare to start Routine 'Check_Consent' ---
-    t = 0;
-    frameN = -1;
-    continueRoutine = true; // until we're told otherwise
-    // keep track of whether this Routine was forcibly ended
-    routineForceEnded = false;
-    Check_ConsentClock.reset();
-    routineTimer.reset();
-    Check_ConsentMaxDurationReached = false;
-    // update component parameters for each repeat
-    // reset accept_consent to account for continued clicks & clear times on/off
-    accept_consent.reset()
-    // reset end_study to account for continued clicks & clear times on/off
-    end_study.reset()
-    psychoJS.experiment.addData('Check_Consent.started', globalClock.getTime());
-    Check_ConsentMaxDuration = null
-    // keep track of which components have finished
-    Check_ConsentComponents = [];
-    Check_ConsentComponents.push(consent_textbox);
-    Check_ConsentComponents.push(accept_consent);
-    Check_ConsentComponents.push(end_study);
-    
-    Check_ConsentComponents.forEach( function(thisComponent) {
-      if ('status' in thisComponent)
-        thisComponent.status = PsychoJS.Status.NOT_STARTED;
-       });
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-function Check_ConsentRoutineEachFrame() {
-  return async function () {
-    //--- Loop for each frame of Routine 'Check_Consent' ---
-    // get current time
-    t = Check_ConsentClock.getTime();
-    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
-    // update/draw components on each frame
-    
-    // *consent_textbox* updates
-    if (t >= 0.0 && consent_textbox.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      consent_textbox.tStart = t;  // (not accounting for frame time here)
-      consent_textbox.frameNStart = frameN;  // exact frame index
-      
-      consent_textbox.setAutoDraw(true);
-    }
-    
-    
-    // if consent_textbox is active this frame...
-    if (consent_textbox.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *accept_consent* updates
-    if (t >= 0 && accept_consent.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      accept_consent.tStart = t;  // (not accounting for frame time here)
-      accept_consent.frameNStart = frameN;  // exact frame index
-      
-      accept_consent.setAutoDraw(true);
-    }
-    
-    
-    // if accept_consent is active this frame...
-    if (accept_consent.status === PsychoJS.Status.STARTED) {
-    }
-    
-    if (accept_consent.status === PsychoJS.Status.STARTED) {
-      // check whether accept_consent has been pressed
-      if (accept_consent.isClicked) {
-        if (!accept_consent.wasClicked) {
-          // store time of first click
-          accept_consent.timesOn.push(accept_consent.clock.getTime());
-          // store time clicked until
-          accept_consent.timesOff.push(accept_consent.clock.getTime());
-        } else {
-          // update time clicked until;
-          accept_consent.timesOff[accept_consent.timesOff.length - 1] = accept_consent.clock.getTime();
-        }
-        if (!accept_consent.wasClicked) {
-          // end routine when accept_consent is clicked
-          continueRoutine = false;
-          
-        }
-        // if accept_consent is still clicked next frame, it is not a new click
-        accept_consent.wasClicked = true;
-      } else {
-        // if accept_consent is clicked next frame, it is a new click
-        accept_consent.wasClicked = false;
-      }
-    } else {
-      // keep clock at 0 if accept_consent hasn't started / has finished
-      accept_consent.clock.reset();
-      // if accept_consent is clicked next frame, it is a new click
-      accept_consent.wasClicked = false;
-    }
-    
-    // *end_study* updates
-    if (t >= 0 && end_study.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      end_study.tStart = t;  // (not accounting for frame time here)
-      end_study.frameNStart = frameN;  // exact frame index
-      
-      end_study.setAutoDraw(true);
-    }
-    
-    
-    // if end_study is active this frame...
-    if (end_study.status === PsychoJS.Status.STARTED) {
-    }
-    
-    if (end_study.status === PsychoJS.Status.STARTED) {
-      // check whether end_study has been pressed
-      if (end_study.isClicked) {
-        if (!end_study.wasClicked) {
-          // store time of first click
-          end_study.timesOn.push(end_study.clock.getTime());
-          // store time clicked until
-          end_study.timesOff.push(end_study.clock.getTime());
-        } else {
-          // update time clicked until;
-          end_study.timesOff[end_study.timesOff.length - 1] = end_study.clock.getTime();
-        }
-        if (!end_study.wasClicked) {
-          
-        }
-        // if end_study is still clicked next frame, it is not a new click
-        end_study.wasClicked = true;
-      } else {
-        // if end_study is clicked next frame, it is a new click
-        end_study.wasClicked = false;
-      }
-    } else {
-      // keep clock at 0 if end_study hasn't started / has finished
-      end_study.clock.reset();
-      // if end_study is clicked next frame, it is a new click
-      end_study.wasClicked = false;
-    }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
-    // check if the Routine should terminate
-    if (!continueRoutine) {  // a component has requested a forced-end of Routine
-      routineForceEnded = true;
-      return Scheduler.Event.NEXT;
-    }
-    
-    continueRoutine = false;  // reverts to True if at least one component still running
-    Check_ConsentComponents.forEach( function(thisComponent) {
-      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
-        continueRoutine = true;
-      }
-    });
-    
-    // refresh the screen if continuing
-    if (continueRoutine) {
-      return Scheduler.Event.FLIP_REPEAT;
-    } else {
-      return Scheduler.Event.NEXT;
-    }
-  };
-}
-
-
-var endExpNow;
-function Check_ConsentRoutineEnd(snapshot) {
-  return async function () {
-    //--- Ending Routine 'Check_Consent' ---
-    Check_ConsentComponents.forEach( function(thisComponent) {
-      if (typeof thisComponent.setAutoDraw === 'function') {
-        thisComponent.setAutoDraw(false);
-      }
-    });
-    psychoJS.experiment.addData('Check_Consent.stopped', globalClock.getTime());
-    psychoJS.experiment.addData('accept_consent.numClicks', accept_consent.numClicks);
-    psychoJS.experiment.addData('accept_consent.timesOn', accept_consent.timesOn);
-    psychoJS.experiment.addData('accept_consent.timesOff', accept_consent.timesOff);
-    psychoJS.experiment.addData('end_study.numClicks', end_study.numClicks);
-    psychoJS.experiment.addData('end_study.timesOn', end_study.timesOn);
-    psychoJS.experiment.addData('end_study.timesOff', end_study.timesOff);
-    // Run 'End Routine' code from end_study_code
-    if ((end_study.numClicks > 0)) {
-        endExpNow = true;
-    }
-    
-    // the Routine "Check_Consent" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
     // Routines running outside a loop should always advance the datafile row
@@ -2578,6 +3107,8 @@ function Scene_DescriptionRoutineEnd(snapshot) {
     
     key_resp_description.stop();
     psychoJS.experiment.addData('Scene_Description.duration', Scene_DescriptionClock.getTime());
+    psychoJS.experiment.addData('description_char_count', response_box.text ? response_box.text.replace(/\s/g, '').length : 0);
+    psychoJS.experiment.addData('description_word_count', response_box.text ? response_box.text.trim().split(/\s+/).filter(Boolean).length : 0);
     // the Routine "Scene_Description" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -2724,6 +3255,7 @@ var movingPiece;
 var snapThresh;
 var mouseReleased;
 var submit_allowed;
+var placement_count;
 var gotValidClick;
 var task_timer_start;
 var task_timer_duration;
@@ -2831,6 +3363,8 @@ function Face_RankingRoutineBegin(snapshot) {
     mouseReleased = true;
     
     submit_allowed = false;
+    
+    placement_count = 0;
     // setup some python lists for storing info about the mouse
     gotValidClick = false; // until a click is received
     // Run 'Begin Routine' code from timer
@@ -2840,7 +3374,7 @@ function Face_RankingRoutineBegin(snapshot) {
     finish_ranking_key.rt = undefined;
     _finish_ranking_key_allKeys = [];
     psychoJS.experiment.addData('Face_Ranking.started', globalClock.getTime());
-    Face_RankingMaxDuration = 20
+    Face_RankingMaxDuration = 40
     // keep track of which components have finished
     Face_RankingComponents = [];
     Face_RankingComponents.push(ranking_bar_left);
@@ -3200,6 +3734,7 @@ function Face_RankingRoutineEachFrame() {
     
                     occupiedSlots[closestSlot] =
                         movingPiece;
+                    placement_count += 1;
     
                 }
     
@@ -3375,6 +3910,13 @@ function Face_RankingRoutineEnd(snapshot) {
         }
     }
     
+    psychoJS.experiment.addData('ranking_timed_out', (Face_RankingMaxDurationReached || time_left <= 0));
+    psychoJS.experiment.addData('ranking_completed_all_slots', submit_allowed);
+    psychoJS.experiment.addData('ranking_response_time', Face_RankingClock.getTime());
+    psychoJS.experiment.addData('face_set_number', faceNumber);
+    psychoJS.experiment.addData('face_folder', folderName);
+    psychoJS.experiment.addData('ranking_placement_count', placement_count);
+    
     psychoJS.experiment.nextEntry();
     // store data for psychoJS.experiment (ExperimentHandler)
     // update the trial handler
@@ -3389,6 +3931,7 @@ function Face_RankingRoutineEnd(snapshot) {
         }
     
     finish_ranking_key.stop();
+    // Insgesamt gebrauchte Zeit
     psychoJS.experiment.addData('Face_Ranking.duration', Face_RankingClock.getTime());
     // the Routine "Face_Ranking" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
@@ -3549,10 +4092,10 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
         return rows.join('\n');
     }
     
-    var participantID = expInfo["Initials"] + "" + expInfo["Age"];
+    // names
+    var participantID = participant_code || "UNKNOWN";
     var sceneNum = (Scene_Loop.thisN !== undefined ? Scene_Loop.thisN : 0) + 1;
     var filename = "participant_" + participantID + "_" + expName.replace(/ /g, "_") + "_scene_" + sceneNum + ".csv";
-    
     var csvData = convertToCSV(allRows);
     
     fetch("https://pipe.jspsych.org/api/data/", {
@@ -4546,176 +5089,6 @@ function IAT_feedbackRoutineEnd(snapshot) {
 }
 
 
-var QuestionnaireMaxDurationReached;
-var demo_gender;
-var demo_race;
-var demo_done;
-var QuestionnaireMaxDuration;
-var QuestionnaireComponents;
-function QuestionnaireRoutineBegin(snapshot) {
-  return async function () {
-    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
-    
-    //--- Prepare to start Routine 'Questionnaire' ---
-    t = 0;
-    frameN = -1;
-    continueRoutine = true; // until we're told otherwise
-    // keep track of whether this Routine was forcibly ended
-    routineForceEnded = false;
-    QuestionnaireClock.reset();
-    routineTimer.reset();
-    QuestionnaireMaxDurationReached = false;
-    // update component parameters for each repeat
-    // Run 'Begin Routine' code from question_code
-    // Hide the PsychoJS canvas temporarily
-    psychoJS.window._renderer.view.style.display = 'none';
-    
-    // Create overlay form
-    var overlay = document.createElement('div');
-    overlay.id = 'demo-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;';
-    demo_gender = '';
-    demo_race = '';
-    
-    overlay.innerHTML = '\
-    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:400px;">\
-      <h2 style="margin-top:0;">A few last questions</h2>\
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">Gender</label>\
-        <select id="demo-gender" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-          <option value="female">Female</option>\
-          <option value="male">Male</option>\
-          <option value="non-binary">Non-binary</option>\
-          <option value="diverse">Diverse</option>\
-          <option value="prefer_not">Prefer not to say</option>\
-          <option value="other">Other</option>\
-        </select>\
-      </div>\
-      <div style="margin-bottom:30px;">\
-        <label style="display:block;margin-bottom:8px;">Ethnic background</label>\
-        <select id="demo-race" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-          <option value="white">White / Caucasian</option>\
-          <option value="black">Black / African descent</option>\
-          <option value="asian">Asian</option>\
-          <option value="hispanic">Hispanic / Latino</option>\
-          <option value="middle_eastern">Middle Eastern</option>\
-          <option value="mixed">Mixed / Multiple</option>\
-          <option value="prefer_not">Prefer not to say</option>\
-          <option value="other">Other</option>\
-        </select>\
-      </div>\
-      <button id="demo-submit" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
-      <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer both questions.</p>\
-    </div>';
-    
-    document.body.appendChild(overlay);
-    
-    // flag to signal routine can end
-    demo_done = false;
-    demo_gender = '';
-    demo_race = '';
-    
-    document.getElementById('demo-submit').addEventListener('click', function() {
-        var gender = document.getElementById('demo-gender').value;
-        var race = document.getElementById('demo-race').value;
-    
-        if (!gender || !race) {
-            document.getElementById('demo-error').style.display = 'block';
-            return;
-        }
-    
-        // store in global vars, save in RoutineEnd
-        demo_gender = gender;
-        demo_race = race;
-    
-        // clean up
-        document.body.removeChild(overlay);
-        psychoJS.window._renderer.view.style.display = 'block';
-        demo_done = true;
-    });
-    psychoJS.experiment.addData('Questionnaire.started', globalClock.getTime());
-    QuestionnaireMaxDuration = null
-    // keep track of which components have finished
-    QuestionnaireComponents = [];
-    
-    QuestionnaireComponents.forEach( function(thisComponent) {
-      if ('status' in thisComponent)
-        thisComponent.status = PsychoJS.Status.NOT_STARTED;
-       });
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-function QuestionnaireRoutineEachFrame() {
-  return async function () {
-    //--- Loop for each frame of Routine 'Questionnaire' ---
-    // get current time
-    t = QuestionnaireClock.getTime();
-    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
-    // update/draw components on each frame
-    if (demo_done) {
-        continueRoutine = false;
-    }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
-    // check if the Routine should terminate
-    if (!continueRoutine) {  // a component has requested a forced-end of Routine
-      routineForceEnded = true;
-      return Scheduler.Event.NEXT;
-    }
-    
-    continueRoutine = false;  // reverts to True if at least one component still running
-    QuestionnaireComponents.forEach( function(thisComponent) {
-      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
-        continueRoutine = true;
-      }
-    });
-    
-    // refresh the screen if continuing
-    if (continueRoutine) {
-      return Scheduler.Event.FLIP_REPEAT;
-    } else {
-      return Scheduler.Event.NEXT;
-    }
-  };
-}
-
-
-function QuestionnaireRoutineEnd(snapshot) {
-  return async function () {
-    //--- Ending Routine 'Questionnaire' ---
-    QuestionnaireComponents.forEach( function(thisComponent) {
-      if (typeof thisComponent.setAutoDraw === 'function') {
-        thisComponent.setAutoDraw(false);
-      }
-    });
-    psychoJS.experiment.addData('Questionnaire.stopped', globalClock.getTime());
-    // ensure canvas is visible again in case something went wrong
-    psychoJS.window._renderer.view.style.display = 'block';
-    // save questionnaire data
-    psychoJS.experiment.addData('gender', demo_gender);
-    psychoJS.experiment.addData('ethnic_background', demo_race);
-    psychoJS.experiment.nextEntry();
-    // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
-    routineTimer.reset();
-    // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
-    routineTimer.reset();
-    
-    // Routines running outside a loop should always advance the datafile row
-    if (currentLoop === psychoJS.experiment) {
-      psychoJS.experiment.nextEntry(snapshot);
-    }
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
 var ExitMaxDurationReached;
 var _key_resp_2_allKeys;
 var ExitMaxDuration;
@@ -4864,9 +5237,9 @@ function ExitRoutineEnd(snapshot) {
     
     // filename must be unique
     let filename =
-        psychoJS.experiment.extraInfo.Initials +
+        "participant_" +
+        (participant_code || "UNKNOWN") +
         "_" +
-        psychoJS.experiment.extraInfo.Age
         Date.now() +
         ".csv";
         
