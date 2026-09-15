@@ -3239,6 +3239,9 @@ function load_scene_facesRoutineEnd(snapshot) {
 
 
 var Face_RankingMaxDurationReached;
+var faceNumber;
+var folderName;
+var faceBasePath;
 var picked;
 var originalPositions;
 var locations;
@@ -3271,13 +3274,13 @@ function Face_RankingRoutineBegin(snapshot) {
     // update component parameters for each repeat
     // Get the current repetition of Face_Ranking_Loop.
     // thisN is zero-based: 0, 1, 2, ..., 7.
-    var faceNumber = Face_Ranking_Loop.thisN + 1;
+    faceNumber = Face_Ranking_Loop.thisN + 1;
     
     // Get the corresponding face-folder column from the condition file.
-    var folderName = eval("face_folder_" + faceNumber);
+    folderName = eval("face_folder_" + faceNumber);
     
     // Build the base directory.
-    var faceBasePath = "resources/faces/" + gender + "/" + folderName + "/";
+    faceBasePath = "resources/faces/" + gender + "/" + folderName + "/";
     
     // Build paths for the six faces.
     var face1Path = faceBasePath + "1.jpg";
