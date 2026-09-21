@@ -271,6 +271,7 @@ var face;
 var item;
 var description_2;
 var key_resp_4;
+var text_continue;
 var InstructionsClock;
 var instruction_text;
 var key_resp;
@@ -396,7 +397,7 @@ async function experimentInit() {
     size : [0.75, 0.75],
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : 0.0 
+    texRes : 128.0, interpolate : true, depth : -1.0 
   });
   face = new visual.ImageStim({
     win : psychoJS.window,
@@ -409,7 +410,7 @@ async function experimentInit() {
     size : [0.5, 0.5],
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -1.0 
+    texRes : 128.0, interpolate : true, depth : -2.0 
   });
   item = new visual.ImageStim({
     win : psychoJS.window,
@@ -422,7 +423,7 @@ async function experimentInit() {
     size : [0.5, 0.5],
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -2.0 
+    texRes : 128.0, interpolate : true, depth : -3.0 
   });
   description_2 = new visual.TextBox({
     win: psychoJS.window,
@@ -434,7 +435,7 @@ async function experimentInit() {
     draggable: false,
     letterHeight: 0.05,
     lineSpacing: 1.0,
-    size: [0.5, 0.5],  units: undefined, 
+    size: [1, 0.5],  units: undefined, 
     ori: 0.0,
     color: 'white', colorSpace: 'rgb',
     fillColor: undefined, borderColor: undefined,
@@ -447,10 +448,22 @@ async function experimentInit() {
     editable: false,
     multiline: true,
     anchor: 'center',
-    depth: -3.0 
+    depth: -4.0 
   });
   
   key_resp_4 = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
+  
+  text_continue = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'text_continue',
+    text: 'Press RETURN to continue',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, (- 0.8)], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: undefined,
+    depth: -6.0 
+  });
   
   // Initialize components for Routine "Instructions"
   InstructionsClock = new util.Clock();
@@ -2238,6 +2251,9 @@ function IAT_blocksLoopEndIteration(scheduler, snapshot) {
 
 
 var new_sceneMaxDurationReached;
+var scene_position_slot;
+var face_position_slot;
+var item_position_slot;
 var _key_resp_4_allKeys;
 var new_sceneMaxDuration;
 var new_sceneComponents;
@@ -2255,6 +2271,36 @@ function new_sceneRoutineBegin(snapshot) {
     routineTimer.reset();
     new_sceneMaxDurationReached = false;
     // update component parameters for each repeat
+    // Jeder Slot hat eine feste Position UND eine feste Größe,
+    // damit das Layout immer gleich aussieht, egal welches Bild wo landet.
+    var sceneSlots = [
+        { pos: [0, 0.5],        size: [0.75, 0.75] },
+        { pos: [-0.35, -0.35],  size: [0.5, 0.5] },
+        { pos: [0.35, -0.35],   size: [0.5, 0.5] }
+    ];
+    
+    // Kopie mischen (Fisher-Yates Shuffle)
+    var shuffledSlots = sceneSlots.slice();
+    for (var i = shuffledSlots.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = shuffledSlots[i];
+        shuffledSlots[i] = shuffledSlots[j];
+        shuffledSlots[j] = temp;
+    }
+    
+    scene.setPos(shuffledSlots[0].pos);
+    scene.setSize(shuffledSlots[0].size);
+    
+    face.setPos(shuffledSlots[1].pos);
+    face.setSize(shuffledSlots[1].size);
+    
+    item.setPos(shuffledSlots[2].pos);
+    item.setSize(shuffledSlots[2].size);
+    
+    // merken, welcher Slot (1 = oben groß, 2 = unten links, 3 = unten rechts) an wen ging
+    scene_position_slot = sceneSlots.indexOf(shuffledSlots[0]) + 1;
+    face_position_slot = sceneSlots.indexOf(shuffledSlots[1]) + 1;
+    item_position_slot = sceneSlots.indexOf(shuffledSlots[2]) + 1;
     scene.setImage(scene_test);
     face.setImage(face_test);
     item.setImage(item_test);
@@ -2271,6 +2317,7 @@ function new_sceneRoutineBegin(snapshot) {
     new_sceneComponents.push(item);
     new_sceneComponents.push(description_2);
     new_sceneComponents.push(key_resp_4);
+    new_sceneComponents.push(text_continue);
     
     for (const thisComponent of new_sceneComponents)
       if ('status' in thisComponent)
@@ -2376,6 +2423,21 @@ function new_sceneRoutineEachFrame() {
       }
     }
     
+    
+    // *text_continue* updates
+    if (t >= 0.0 && text_continue.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      text_continue.tStart = t;  // (not accounting for frame time here)
+      text_continue.frameNStart = frameN;  // exact frame index
+      
+      text_continue.setAutoDraw(true);
+    }
+    
+    
+    // if text_continue is active this frame...
+    if (text_continue.status === PsychoJS.Status.STARTED) {
+    }
+    
     // check for quit (typically the Esc key)
     if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
       return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
@@ -2412,6 +2474,9 @@ function new_sceneRoutineEnd(snapshot) {
         thisComponent.setAutoDraw(false);
       }
     }
+    psychoJS.experiment.addData('scene_position_slot', scene_position_slot);
+    psychoJS.experiment.addData('face_position_slot', face_position_slot);
+    psychoJS.experiment.addData('item_position_slot', item_position_slot);
     psychoJS.experiment.addData('new_scene.stopped', globalClock.getTime());
     // update the trial handler
     if (currentLoop instanceof MultiStairHandler) {
