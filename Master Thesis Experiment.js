@@ -2474,10 +2474,10 @@ function new_sceneRoutineEnd(snapshot) {
         thisComponent.setAutoDraw(false);
       }
     }
+    psychoJS.experiment.addData('new_scene.stopped', globalClock.getTime());
     psychoJS.experiment.addData('scene_position_slot', scene_position_slot);
     psychoJS.experiment.addData('face_position_slot', face_position_slot);
     psychoJS.experiment.addData('item_position_slot', item_position_slot);
-    psychoJS.experiment.addData('new_scene.stopped', globalClock.getTime());
     // update the trial handler
     if (currentLoop instanceof MultiStairHandler) {
       currentLoop.addResponse(key_resp_4.corr, level);
@@ -3348,12 +3348,12 @@ function Face_RankingRoutineBegin(snapshot) {
     faceBasePath = "resources/faces/" + gender + "/" + folderName + "/";
     
     // Build paths for the six faces.
-    var face1Path = faceBasePath + "1.jpg";
-    var face2Path = faceBasePath + "2.jpg";
-    var face3Path = faceBasePath + "3.jpg";
-    var face4Path = faceBasePath + "4.jpg";
-    var face5Path = faceBasePath + "5.jpg";
-    var face6Path = faceBasePath + "6.jpg";
+    var face1Path = faceBasePath + "1.png";
+    var face2Path = faceBasePath + "2.png";
+    var face3Path = faceBasePath + "3.png";
+    var face4Path = faceBasePath + "4.png";
+    var face5Path = faceBasePath + "5.png";
+    var face6Path = faceBasePath + "6.png";
     
     console.log("Face ranking:", faceNumber);
     console.log("Folder:", folderName);
