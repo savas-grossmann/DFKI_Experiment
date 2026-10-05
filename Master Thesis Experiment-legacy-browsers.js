@@ -3209,7 +3209,7 @@ function load_scene_facesRoutineBegin(snapshot) {
     currentSceneFaceResources = [];
     for (var f = 0; f < folders.length; f++) {
         for (var i = 1; i <= 6; i++) {
-            var path = "resources/faces/" + gender + "/" + folders[f] + "/" + i + ".jpg";
+            var path = "resources/faces/" + gender + "/" + folders[f] + "/" + i + ".png";
             currentSceneFaceResources.push({ name: path, path: path });
         }
     }
