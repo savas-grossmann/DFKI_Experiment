@@ -113,6 +113,9 @@ flowScheduler.add(IAT_blocksLoopEnd);
 
 
 
+flowScheduler.add(End_DemographicsRoutineBegin());
+flowScheduler.add(End_DemographicsRoutineEachFrame());
+flowScheduler.add(End_DemographicsRoutineEnd());
 flowScheduler.add(ExitRoutineBegin());
 flowScheduler.add(ExitRoutineEachFrame());
 flowScheduler.add(ExitRoutineEnd());
@@ -328,6 +331,8 @@ var button_right;
 var trial_label_right;
 var IAT_feedbackClock;
 var feedback_msg;
+var End_DemographicsClock;
+var text_placeholder4;
 var ExitClock;
 var exit_message;
 var key_resp_2;
@@ -1056,6 +1061,20 @@ async function experimentInit() {
     depth: -1.0 
   });
   
+  // Initialize components for Routine "End_Demographics"
+  End_DemographicsClock = new util.Clock();
+  text_placeholder4 = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'text_placeholder4',
+    text: '',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: undefined,
+    depth: -1.0 
+  });
+  
   // Initialize components for Routine "Exit"
   ExitClock = new util.Clock();
   exit_message = new visual.TextStim({
@@ -1132,7 +1151,7 @@ function Check_ConsentRoutineBegin(snapshot) {
         <p>Participation is voluntary. You may skip individual tasks or withdraw from the study at any time without giving a reason and without any disadvantage.</p>\
         <p>Your data will be processed confidentially and used exclusively for scientific research purposes.</p>\
         <p>Sarah Boidoglou &amp; Savas Gro&szlig;mann (Study Leads) &mdash; sarah.boidoglou@dfki.de, savas.grossmann@dfki.de<br>\
-        Mansi Sharma (Supervision) &mdash; mansi.sharma@dfki.de<br>\
+        Mansi Sharma &amp; Philipp Müller (Supervision) &mdash; mansi.sharma@dfki.de, phmueller@is.mpg.de<br>\
         DFKI GmbH, Kesselhaus in der Lanolinfabrik, Salzufer 15/16, 10587 Berlin, Germany</p>\
         <p>By agreeing below, you confirm that you have read and understood this information and voluntarily consent to participate in this study.</p>\
       </div>\
@@ -1478,8 +1497,6 @@ var demo_vision;
 var demo_education;
 var demo_student;
 var demo_field_of_study;
-var demo_ethnicity;
-var demo_country;
 var demo_done;
 var demo_screenout;
 var demo_screenout_reason;
@@ -1517,8 +1534,6 @@ function DemographicsRoutineBegin(snapshot) {
     demo_education = '';
     demo_student = '';
     demo_field_of_study = '';
-    demo_ethnicity = '';
-    demo_country = '';
     demo_done = false;
     demo_screenout = false;
     demo_screenout_reason = '';
@@ -1600,7 +1615,7 @@ function DemographicsRoutineBegin(snapshot) {
           <option value="no">No</option>\
         </select>\
       </div>\
-      <div id="demo-field-wrap" style="display:none;margin-bottom:20px;margin-top:-10px;">\
+      <div id="demo-field-wrap" style="display:none;margin-bottom:30px;margin-top:-10px;">\
         <label style="display:block;margin-bottom:8px;">Field of study</label>\
         <select id="demo-field" style="width:100%;padding:8px;font-size:16px;border-radius:4px;margin-bottom:8px;">\
           <option value="">-- Select --</option>\
@@ -1620,26 +1635,7 @@ function DemographicsRoutineBegin(snapshot) {
         <input id="demo-field-other" type="text" placeholder="Please specify" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;display:none;">\
       </div>\
     \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">Ethnic background</label>\
-        <select id="demo-race" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-          <option value="white">White / Caucasian</option>\
-          <option value="middle_eastern">Middle Eastern / Arab / North African</option>\
-          <option value="black">Black / African descent</option>\
-          <option value="asian">Asian</option>\
-          <option value="hispanic">Hispanic / Latino</option>\
-          <option value="multiracial">Multiracial</option>\
-          <option value="prefer_not">Prefer not to say</option>\
-        </select>\
-      </div>\
-    \
-      <div style="margin-bottom:30px;">\
-        <label style="display:block;margin-bottom:8px;">In which country do you currently reside?</label>\
-        <input id="demo-country" type="text" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
-      </div>\
-    \
-      <button id="demo-submit" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
+      <button id="demo-submit" style="width:100%;padding:12px;margin-top:10px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
       <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer all questions.</p>\
     </div>';
     
@@ -1675,9 +1671,6 @@ function DemographicsRoutineBegin(snapshot) {
             '<p>' + reason + '</p>' +
             '<p>Unfortunately you do not meet the eligibility criteria for this study. The experiment will now close.</p>';
     
-        // NOTE: adjust this to match however your experiment normally ends.
-        // If your Builder project has an auto-generated quit function
-        // (e.g. "quitPsychoJS('', false)"), call that instead of psychoJS.quit().
         setTimeout(function() {
             psychoJS.quit({message: reason, isCompleted: false});
         }, 4000);
@@ -1694,12 +1687,10 @@ function DemographicsRoutineBegin(snapshot) {
         var student = document.getElementById('demo-student').value;
         var field = document.getElementById('demo-field').value;
         var fieldOther = document.getElementById('demo-field-other').value;
-        var race = document.getElementById('demo-race').value;
-        var country = document.getElementById('demo-country').value.trim();
     
         // --- required-field validation ---
         var missing = !age || !gender || !nativeEnglish || !vision ||
-                      !education || !student || !race || !country;
+                      !education || !student;
     
         if (gender === 'self_describe' && !genderSelf.trim()) missing = true;
         if (nativeEnglish === 'no' && !englishLevel) missing = true;
@@ -1716,7 +1707,6 @@ function DemographicsRoutineBegin(snapshot) {
     
         // --- eligibility / screen-out checks ---
         if (ageNum < 18) {
-            document.body.removeChild(overlay) || true; // no-op guard, overlay stays for message
             demoScreenOut('You must be 18 years or older to participate in this study.');
             return;
         }
@@ -1738,8 +1728,6 @@ function DemographicsRoutineBegin(snapshot) {
         demo_education = education;
         demo_student = student;
         demo_field_of_study = (student === 'yes') ? ((field === 'other') ? fieldOther.trim() : field) : '';
-        demo_ethnicity = race;
-        demo_country = country;
     
         // clean up
         document.body.removeChild(overlay);
@@ -1834,8 +1822,6 @@ function DemographicsRoutineEnd(snapshot) {
     psychoJS.experiment.addData('education', demo_education);
     psychoJS.experiment.addData('student', demo_student);
     psychoJS.experiment.addData('field_of_study', demo_field_of_study);
-    psychoJS.experiment.addData('ethnic_background', demo_ethnicity);
-    psychoJS.experiment.addData('country', demo_country);
     psychoJS.experiment.nextEntry();
     // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
@@ -5148,6 +5134,229 @@ function IAT_feedbackRoutineEnd(snapshot) {
     } else {
         IAT_feedbackClock.add(1.000000);
     }
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+var End_DemographicsMaxDurationReached;
+var demo_ethnicity;
+var demo_country_code;
+var demo_country_name;
+var End_DemographicsMaxDuration;
+var End_DemographicsComponents;
+function End_DemographicsRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'End_Demographics' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    End_DemographicsClock.reset();
+    routineTimer.reset();
+    End_DemographicsMaxDurationReached = false;
+    // update component parameters for each repeat
+    // Hide the PsychoJS canvas temporarily
+    psychoJS.window._renderer.view.style.display = 'none';
+    
+    // Create overlay form
+    var overlay = document.createElement('div');
+    overlay.id = 'demo-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
+    
+    // global vars
+    demo_ethnicity = '';
+    demo_country_code = '';
+    demo_country_name = '';
+    demo_done = false;
+    
+    overlay.innerHTML = '\
+    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
+      <h2 style="margin-top:0;">Demographics</h2>\
+    \
+      <div style="margin-bottom:20px;">\
+        <label style="display:block;margin-bottom:8px;">Ethnic background</label>\
+        <select id="demo-race" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+          <option value="white">White / Caucasian</option>\
+          <option value="middle_eastern">Middle Eastern / Arab / North African</option>\
+          <option value="black">Black / African descent</option>\
+          <option value="asian">Asian</option>\
+          <option value="hispanic">Hispanic / Latino</option>\
+          <option value="multiracial">Multiracial</option>\
+          <option value="prefer_not">Prefer not to say</option>\
+        </select>\
+      </div>\
+    \
+      <div style="margin-bottom:30px;">\
+        <label style="display:block;margin-bottom:8px;">In which country do you currently reside?</label>\
+        <select id="demo-country" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+          <option value="">-- Select --</option>\
+        </select>\
+      </div>\
+    \
+      <button id="demo-submit" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
+      <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer all questions.</p>\
+    </div>';
+    
+    document.body.appendChild(overlay);
+    
+    // --- build country list (ISO 3166-1 alpha-2 codes) ---
+    var countryCodes = ('AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ ' +
+        'CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR ' +
+        'GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP ' +
+        'KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ ' +
+        'NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW ' +
+        'SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ ' +
+        'UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW').split(' ');
+    
+    // Language of the country names: 'en' -> "Germany", 'de' -> "Deutschland"
+    var countryLocale = 'en';
+    
+    var displayNames = null;
+    try {
+        displayNames = new Intl.DisplayNames([countryLocale], {type: 'region'});
+    } catch (e) {
+        displayNames = null;
+    }
+    
+    var countries = [];
+    for (var c = 0; c < countryCodes.length; c++) {
+        var code = countryCodes[c];
+        var name = code;
+        try {
+            if (displayNames) name = displayNames.of(code) || code;
+        } catch (e) {}
+        countries.push({code: code, name: name});
+    }
+    
+    countries.sort(function(a, b) {
+        return a.name.localeCompare(b.name, countryLocale);
+    });
+    
+    var countrySelect = document.getElementById('demo-country');
+    for (var k = 0; k < countries.length; k++) {
+        var opt = document.createElement('option');
+        opt.value = countries[k].code;
+        opt.textContent = countries[k].name;
+        countrySelect.appendChild(opt);
+    }
+    
+    // --- submit ---
+    document.getElementById('demo-submit').addEventListener('click', function() {
+        var race = document.getElementById('demo-race').value;
+        var countrySel = document.getElementById('demo-country');
+        var countryCode = countrySel.value;
+    
+        if (!race || !countryCode) {
+            document.getElementById('demo-error').style.display = 'block';
+            return;
+        }
+    
+        demo_ethnicity = race;
+        demo_country_code = countryCode;
+        demo_country_name = countrySel.options[countrySel.selectedIndex].text;
+    
+        // clean up
+        document.body.removeChild(overlay);
+        psychoJS.window._renderer.view.style.display = 'block';
+        demo_done = true;
+    });
+    psychoJS.experiment.addData('End_Demographics.started', globalClock.getTime());
+    End_DemographicsMaxDuration = null
+    // keep track of which components have finished
+    End_DemographicsComponents = [];
+    End_DemographicsComponents.push(text_placeholder4);
+    
+    End_DemographicsComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+       });
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function End_DemographicsRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'End_Demographics' ---
+    // get current time
+    t = End_DemographicsClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    if (demo_done) {
+        continueRoutine = false;
+    }
+    
+    // *text_placeholder4* updates
+    if (t >= 0.0 && text_placeholder4.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      text_placeholder4.tStart = t;  // (not accounting for frame time here)
+      text_placeholder4.frameNStart = frameN;  // exact frame index
+      
+      text_placeholder4.setAutoDraw(true);
+    }
+    
+    
+    // if text_placeholder4 is active this frame...
+    if (text_placeholder4.status === PsychoJS.Status.STARTED) {
+    }
+    
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    End_DemographicsComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+      }
+    });
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+function End_DemographicsRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'End_Demographics' ---
+    End_DemographicsComponents.forEach( function(thisComponent) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    });
+    psychoJS.experiment.addData('End_Demographics.stopped', globalClock.getTime());
+    // ensure canvas is visible again in case something went wrong
+    psychoJS.window._renderer.view.style.display = 'block';
+    // save questionnaire data
+    psychoJS.experiment.addData('ethnic_background', demo_ethnicity);
+    psychoJS.experiment.addData('country_code', demo_country_code);
+    psychoJS.experiment.addData('country_name', demo_country_name);
+    // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    // the Routine "End_Demographics" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
     // Routines running outside a loop should always advance the datafile row
     if (currentLoop === psychoJS.experiment) {
       psychoJS.experiment.nextEntry(snapshot);
