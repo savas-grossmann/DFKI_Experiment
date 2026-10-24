@@ -9,6 +9,37 @@ let expInfo = {};
 let PILOTING = util.getUrlParameters().has('__pilotToken');
 
 // Start code blocks for 'Before Experiment'
+var consent_given = false;
+var consent_declined = false;
+var consent_done = false;
+
+// Consent
+var consent_given = false;
+var consent_declined = false;
+var consent_done = false;
+
+// Participant code
+var participant_code = '';
+var pcode_done = false;
+
+// Demographics
+var demo_age = '';
+var demo_gender = '';
+var demo_gender_self = '';
+var demo_native_english = '';
+var demo_english_level = '';
+var demo_vision = '';
+var demo_education = '';
+var demo_student = '';
+var demo_field_of_study = '';
+var demo_done = false;
+var demo_screenout = false;
+var demo_screenout_reason = '';
+
+// End demographics
+var demo_ethnicity = '';
+var demo_country_code = '';
+var demo_country_name = '';
 // Run 'Before Experiment' code from snap_pictures
 
 function distanceCalc(pos1, pos2) {
@@ -1291,8 +1322,6 @@ function Quick_ModeRoutineEnd(snapshot) {
     psychoJS.window._renderer.view.style.display = 'block';
     
     psychoJS.experiment.addData('quick_mode', quickMode);
-    
-    console.log('quickMode:', quickMode, '| scenes:', sceneLoopNum, '| faces:', faceRankingLoopNum);
     // the Routine "Quick_Mode" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -1468,7 +1497,9 @@ function Check_ConsentRoutineEnd(snapshot) {
       }
     });
     psychoJS.experiment.addData('Check_Consent.stopped', globalClock.getTime());
-    if (!quickMode) psychoJS.experiment.addData('consent_given', consent_given);
+    if (!quickMode) {
+        psychoJS.experiment.addData('consent_given', consent_given);
+    }
     // the Routine "Check_Consent" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
