@@ -37,6 +37,70 @@ function aspectCorrectedSize(targetWidth, targetHeight) {
     var winAspect = psychoJS.window.size[0] / psychoJS.window.size[1];
     return [targetWidth / winAspect, targetHeight];
 }
+
+var sessionTag = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+
+function convertToCSV(dataArray) {
+    if (!dataArray || dataArray.length === 0) { return ""; }
+    var allKeys = {};
+    for (var i = 0; i < dataArray.length; i++) {
+        for (var k in dataArray[i]) {
+            if (dataArray[i].hasOwnProperty(k)) allKeys[k] = true;
+        }
+    }
+    var headers = Object.keys(allKeys);
+    var rows = [headers.map(function(h) { return '"' + String(h).replace(/"/g, '""') + '"'; }).join(',')];
+    for (var j = 0; j < dataArray.length; j++) {
+        var row = dataArray[j];
+        rows.push(headers.map(function(h) {
+            var val = (row[h] !== undefined && row[h] !== null) ? String(row[h]) : '';
+            return '"' + val.replace(/"/g, '""') + '"';
+        }).join(','));
+    }
+    return rows.join('\n');
+}
+
+
+async function saveToDataPipe(filename, csv) {
+    for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+            var r = await fetch("https://pipe.jspsych.org/api/data/", {
+                method: "POST",
+                headers: {"Content-Type": "application/json", "Accept": "*/*"},
+                body: JSON.stringify({experimentID: "eonAagK4IATa", filename: filename, data: csv})
+            });
+            var body = {};
+            try { body = await r.json(); } catch (e) {}
+            if (r.status === 201 || r.status === 202) { return true; }   // 202 = queued, also success
+            console.error("DataPipe rejected:", r.status, body.error, body.message);
+            if (r.status === 400) { return false; }                      // retrying won't help
+        } catch (e) {
+            console.error("DataPipe network error:", e);
+        }
+        await new Promise(function(res) { setTimeout(res, 1500 * (attempt + 1)); });
+    }
+    return false;
+}
+
+var facesPromise = null;
+
+
+var facesPromise;
+function startFacePrefetch() {
+    var folders = [face_folder_1, face_folder_2, face_folder_3, face_folder_4,
+                   face_folder_5, face_folder_6, face_folder_7, face_folder_8];
+    var res = [];
+    for (var f = 0; f < folders.length; f++) {
+        for (var i = 1; i <= 6; i++) {
+            var p = "resources/faces/" + gender + "/" + folders[f] + "/" + i + ".png";
+            res.push({ name: p, path: p });
+        }
+    }
+    facesPromise = psychoJS.serverManager.prepareResources(res)
+        .catch(function (e) { console.error("Face prefetch failed:", e); });
+    return facesPromise;
+}
 // init psychoJS:
 const psychoJS = new PsychoJS({
   debug: true
@@ -64,6 +128,9 @@ psychoJS.scheduleCondition(function() { return (psychoJS.gui.dialogComponent.but
 // flowScheduler gets run if the participants presses OK
 flowScheduler.add(updateInfo); // add timeStamp
 flowScheduler.add(experimentInit);
+flowScheduler.add(Quick_ModeRoutineBegin());
+flowScheduler.add(Quick_ModeRoutineEachFrame());
+flowScheduler.add(Quick_ModeRoutineEnd());
 flowScheduler.add(Check_ConsentRoutineBegin());
 flowScheduler.add(Check_ConsentRoutineEachFrame());
 flowScheduler.add(Check_ConsentRoutineEnd());
@@ -78,7 +145,6 @@ flowScheduler.add(test_trialsLoopBegin(test_trialsLoopScheduler));
 flowScheduler.add(test_trialsLoopScheduler);
 flowScheduler.add(test_trialsLoopEnd);
 
-
 flowScheduler.add(InstructionsRoutineBegin());
 flowScheduler.add(InstructionsRoutineEachFrame());
 flowScheduler.add(InstructionsRoutineEnd());
@@ -89,6 +155,7 @@ const Scene_LoopLoopScheduler = new Scheduler(psychoJS);
 flowScheduler.add(Scene_LoopLoopBegin(Scene_LoopLoopScheduler));
 flowScheduler.add(Scene_LoopLoopScheduler);
 flowScheduler.add(Scene_LoopLoopEnd);
+
 
 
 
@@ -151,61 +218,11 @@ psychoJS.start({
     {'name': 'resources/iat/incong_train.xlsx', 'path': 'resources/iat/incong_train.xlsx'},
     {'name': 'resources/iat/incong_test.xlsx', 'path': 'resources/iat/incong_test.xlsx'},
     {'name': 'default.png', 'path': 'https://pavlovia.org/assets/default/default.png'},
+    {'name': 'resources/conditions/condition_0.xlsx', 'path': 'resources/conditions/condition_0.xlsx'},
+    {'name': 'resources/conditions/condition_1.xlsx', 'path': 'resources/conditions/condition_1.xlsx'},
+    {'name': 'resources/conditions/condition_2.xlsx', 'path': 'resources/conditions/condition_2.xlsx'},
+    {'name': 'resources/conditions/condition_3.xlsx', 'path': 'resources/conditions/condition_3.xlsx'},
     {'name': 'resources/test/test.xlsx', 'path': 'resources/test/test.xlsx'},
-    {'name': 'resources/test/anordnung_4/face.png', 'path': 'resources/test/anordnung_4/face.png'},
-    {'name': 'resources/test/anordnung_4/item.jpg', 'path': 'resources/test/anordnung_4/item.jpg'},
-    {'name': 'resources/test/anordnung_4/scene.jpg', 'path': 'resources/test/anordnung_4/scene.jpg'},
-    {'name': 'resources/test/anordnung_3/face.png', 'path': 'resources/test/anordnung_3/face.png'},
-    {'name': 'resources/test/anordnung_3/item.jpg', 'path': 'resources/test/anordnung_3/item.jpg'},
-    {'name': 'resources/test/anordnung_3/scene.jpg', 'path': 'resources/test/anordnung_3/scene.jpg'},
-    {'name': 'resources/test/anordnung_2/face.png', 'path': 'resources/test/anordnung_2/face.png'},
-    {'name': 'resources/test/anordnung_2/item.jpg', 'path': 'resources/test/anordnung_2/item.jpg'},
-    {'name': 'resources/test/anordnung_2/scene.jpg', 'path': 'resources/test/anordnung_2/scene.jpg'},
-    {'name': 'resources/test/anordnung_1/face.png', 'path': 'resources/test/anordnung_1/face.png'},
-    {'name': 'resources/test/anordnung_1/item.jpg', 'path': 'resources/test/anordnung_1/item.jpg'},
-    {'name': 'resources/test/anordnung_1/scene.jpg', 'path': 'resources/test/anordnung_1/scene.jpg'},
-    {'name': 'resources/documents/consent_form.pdf', 'path': 'resources/documents/consent_form.pdf'},
-    {'name': 'resources/scenes/male/Auto_M.jpg', 'path': 'resources/scenes/male/Auto_M.jpg'},
-    {'name': 'resources/scenes/male/Bankautomat_M.jpg', 'path': 'resources/scenes/male/Bankautomat_M.jpg'},
-    {'name': 'resources/scenes/male/Baseballschlaeger_M.jpg', 'path': 'resources/scenes/male/Baseballschlaeger_M.jpg'},
-    {'name': 'resources/scenes/male/Briefkasten_M.jpg', 'path': 'resources/scenes/male/Briefkasten_M.jpg'},
-    {'name': 'resources/scenes/male/Diebstahl_M.jpg', 'path': 'resources/scenes/male/Diebstahl_M.jpg'},
-    {'name': 'resources/scenes/male/Einbruch_M.jpg', 'path': 'resources/scenes/male/Einbruch_M.jpg'},
-    {'name': 'resources/scenes/male/Fahrrad_M.jpg', 'path': 'resources/scenes/male/Fahrrad_M.jpg'},
-    {'name': 'resources/scenes/male/Gasse_M.jpg', 'path': 'resources/scenes/male/Gasse_M.jpg'},
-    {'name': 'resources/scenes/male/Juwelier_M.jpg', 'path': 'resources/scenes/male/Juwelier_M.jpg'},
-    {'name': 'resources/scenes/male/Ladenverlassen_M.jpg', 'path': 'resources/scenes/male/Ladenverlassen_M.jpg'},
-    {'name': 'resources/scenes/male/Lebensmittelladen_M.jpg', 'path': 'resources/scenes/male/Lebensmittelladen_M.jpg'},
-    {'name': 'resources/scenes/male/Loesegeld_M.jpg', 'path': 'resources/scenes/male/Loesegeld_M.jpg'},
-    {'name': 'resources/scenes/male/Motorrad_M.jpg', 'path': 'resources/scenes/male/Motorrad_M.jpg'},
-    {'name': 'resources/scenes/male/Park_M.jpg', 'path': 'resources/scenes/male/Park_M.jpg'},
-    {'name': 'resources/scenes/male/Party_M.jpg', 'path': 'resources/scenes/male/Party_M.jpg'},
-    {'name': 'resources/scenes/male/Reifen_M.jpg', 'path': 'resources/scenes/male/Reifen_M.jpg'},
-    {'name': 'resources/scenes/male/Terasse_M.jpg', 'path': 'resources/scenes/male/Terasse_M.jpg'},
-    {'name': 'resources/scenes/male/Vandalismus_M.jpg', 'path': 'resources/scenes/male/Vandalismus_M.jpg'},
-    {'name': 'resources/scenes/male/Wohnung_M.jpg', 'path': 'resources/scenes/male/Wohnung_M.jpg'},
-    {'name': 'resources/scenes/male/Zug_M.jpg', 'path': 'resources/scenes/male/Zug_M.jpg'},
-    {'name': 'resources/scenes/female/Auto_F.jpg', 'path': 'resources/scenes/female/Auto_F.jpg'},
-    {'name': 'resources/scenes/female/Bankautomat_F.jpg', 'path': 'resources/scenes/female/Bankautomat_F.jpg'},
-    {'name': 'resources/scenes/female/Baseballschlaeger_F.jpg', 'path': 'resources/scenes/female/Baseballschlaeger_F.jpg'},
-    {'name': 'resources/scenes/female/Briefkasten_F.jpg', 'path': 'resources/scenes/female/Briefkasten_F.jpg'},
-    {'name': 'resources/scenes/female/Diebstahl_F.jpg', 'path': 'resources/scenes/female/Diebstahl_F.jpg'},
-    {'name': 'resources/scenes/female/Einbruch_F.jpg', 'path': 'resources/scenes/female/Einbruch_F.jpg'},
-    {'name': 'resources/scenes/female/Fahrrad_F.jpg', 'path': 'resources/scenes/female/Fahrrad_F.jpg'},
-    {'name': 'resources/scenes/female/Gasse_F.jpg', 'path': 'resources/scenes/female/Gasse_F.jpg'},
-    {'name': 'resources/scenes/female/Juwelier_F.jpg', 'path': 'resources/scenes/female/Juwelier_F.jpg'},
-    {'name': 'resources/scenes/female/Ladenverlassen_F.jpg', 'path': 'resources/scenes/female/Ladenverlassen_F.jpg'},
-    {'name': 'resources/scenes/female/Lebensmittelladen_F.jpg', 'path': 'resources/scenes/female/Lebensmittelladen_F.jpg'},
-    {'name': 'resources/scenes/female/Loesegeld_F.jpg', 'path': 'resources/scenes/female/Loesegeld_F.jpg'},
-    {'name': 'resources/scenes/female/Motorrad_F.jpg', 'path': 'resources/scenes/female/Motorrad_F.jpg'},
-    {'name': 'resources/scenes/female/Park_F.jpg', 'path': 'resources/scenes/female/Park_F.jpg'},
-    {'name': 'resources/scenes/female/Party_F.jpg', 'path': 'resources/scenes/female/Party_F.jpg'},
-    {'name': 'resources/scenes/female/Reifen_F.jpg', 'path': 'resources/scenes/female/Reifen_F.jpg'},
-    {'name': 'resources/scenes/female/Terasse_F.jpg', 'path': 'resources/scenes/female/Terasse_F.jpg'},
-    {'name': 'resources/scenes/female/Vandalismus_F.jpg', 'path': 'resources/scenes/female/Vandalismus_F.jpg'},
-    {'name': 'resources/scenes/female/Wohnung_F.jpg', 'path': 'resources/scenes/female/Wohnung_F.jpg'},
-    {'name': 'resources/scenes/female/Zug_F.jpg', 'path': 'resources/scenes/female/Zug_F.jpg'},
-    {'name': 'resources/scenes/male/Auto_M.jpg', 'path': 'resources/scenes/male/Auto_M.jpg'},
     {'name': 'resources/iat/stimuli/blank.png', 'path': 'resources/iat/stimuli/blank.png'},
     {'name': 'resources/iat/blocks_order.xlsx', 'path': 'resources/iat/blocks_order.xlsx'},
     {'name': 'resources/iat/cong_test.xlsx', 'path': 'resources/iat/cong_test.xlsx'},
@@ -214,10 +231,6 @@ psychoJS.start({
     {'name': 'resources/iat/incong_train.xlsx', 'path': 'resources/iat/incong_train.xlsx'},
     {'name': 'resources/iat/instructs.xlsx', 'path': 'resources/iat/instructs.xlsx'},
     {'name': 'resources/iat/pos_neg_train.xlsx', 'path': 'resources/iat/pos_neg_train.xlsx'},
-    {'name': 'resources/conditions/condition_0.xlsx', 'path': 'resources/conditions/condition_0.xlsx'},
-    {'name': 'resources/conditions/condition_1.xlsx', 'path': 'resources/conditions/condition_1.xlsx'},
-    {'name': 'resources/conditions/condition_2.xlsx', 'path': 'resources/conditions/condition_2.xlsx'},
-    {'name': 'resources/conditions/condition_3.xlsx', 'path': 'resources/conditions/condition_3.xlsx'},
   ]
 });
 
@@ -246,7 +259,7 @@ async function updateInfo() {
   
 
   
-  psychoJS.experiment.dataFileName = (("." + "/") + `data//${participant_code}_${expName}_${expInfo["date"]}`);
+  psychoJS.experiment.dataFileName = (("." + "/") + sessionTag);
   psychoJS.experiment.field_separator = '\t';
 
 
@@ -254,29 +267,34 @@ async function updateInfo() {
 }
 
 
+var Quick_ModeClock;
+var text_placeholder5;
+var quickMode;
+var quickModeChoiceDone;
+var sceneLoopNum;
+var faceRankingLoopNum;
+var participant_code;
+var sceneImagesReady;
 var Check_ConsentClock;
 var text_placeholder2;
 var Participant_CodeClock;
 var text_placeholder;
 var DemographicsClock;
 var text_placeholder3;
-var new_sceneClock;
-var scene;
-var face;
-var item;
-var description_2;
-var key_resp_4;
-var text_continue;
 var InstructionsClock;
 var instruction_text;
 var key_resp;
 var Condition_LoadingClock;
 var wait_text;
-var Scene_PresentationClock;
-var scene_description;
-var scene_image;
-var key_resp_scene;
-var finish_scene_presentation;
+var load_scene_picturesClock;
+var text_placeholder6;
+var Scene_Presentation_TripleClock;
+var scene_triple;
+var face_triple;
+var item_triple;
+var description_triple;
+var text_continue_triple;
+var key_resp_5;
 var Scene_DescriptionClock;
 var task_description;
 var response_box;
@@ -339,6 +357,125 @@ var key_resp_2;
 var globalClock;
 var routineTimer;
 async function experimentInit() {
+  // Initialize components for Routine "Quick_Mode"
+  Quick_ModeClock = new util.Clock();
+  text_placeholder5 = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'text_placeholder5',
+    text: '',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: 0.0,
+    depth: 0.0 
+  });
+  
+  // Default to normal mode unless the participant chooses Quick Mode.
+  quickMode = false;
+  quickModeChoiceDone = false;
+  sceneLoopNum = 20;
+  faceRankingLoopNum = 8;
+  participant_code = 'quickMode_Delete'
+  sceneImagesReady = false;
+  
+  // Hide the PsychoJS canvas while showing the HTML question.
+  psychoJS.window._renderer.view.style.display = 'none';
+  
+  var quickOverlay = document.createElement('div');
+  
+  quickOverlay.id = 'quick-mode-overlay';
+  
+  quickOverlay.style.cssText =
+      'position:fixed;' +
+      'top:0;left:0;width:100%;height:100%;' +
+      'background:#000;' +
+      'display:flex;' +
+      'align-items:center;' +
+      'justify-content:center;' +
+      'z-index:9999;';
+  
+  quickOverlay.innerHTML = `
+      <div style="
+          background:#222;
+          padding:40px;
+          border-radius:8px;
+          color:white;
+          font-family:Arial,sans-serif;
+          text-align:center;
+          max-width:500px;
+          margin:20px;
+      ">
+          <h2>Quick Experiment</h2>
+  
+          <p style="font-size:18px;line-height:1.5;">
+              Do you want to do a quick experiment?
+          </p>
+  
+          <p style="line-height:1.5;">
+              The quick version skips the demographics and
+              participant code and includes fewer conditions
+              and face rankings.
+          </p>
+  
+          <div style="
+              display:flex;
+              gap:15px;
+              margin-top:25px;
+          ">
+              <button id="quick-mode-yes" style="
+                  flex:1;
+                  padding:12px;
+                  border:0;
+                  border-radius:4px;
+                  background:#4CAF50;
+                  color:white;
+                  font-size:16px;
+                  cursor:pointer;
+              ">Yes</button>
+  
+              <button id="quick-mode-no" style="
+                  flex:1;
+                  padding:12px;
+                  border:0;
+                  border-radius:4px;
+                  background:#666;
+                  color:white;
+                  font-size:16px;
+                  cursor:pointer;
+              ">No</button>
+          </div>
+      </div>
+  `;
+  
+  document.body.appendChild(quickOverlay);
+  
+  // Shared function to finish the selection.
+  function finishQuickModeSelection(useQuickMode) {
+      quickMode = useQuickMode;
+      quickModeChoiceDone = true;
+      
+      if (useQuickMode) {
+          sceneLoopNum = 5;
+          faceRankingLoopNum = 3;
+      }
+  
+      if (quickOverlay.parentNode) {
+          quickOverlay.parentNode.removeChild(quickOverlay);
+      }
+  
+      psychoJS.window._renderer.view.style.display = 'block';
+  }
+  
+  document.getElementById('quick-mode-yes')
+      .addEventListener('click', function () {
+          finishQuickModeSelection(true);
+      });
+  
+  document.getElementById('quick-mode-no')
+      .addEventListener('click', function () {
+          finishQuickModeSelection(false);
+      });
   // Initialize components for Routine "Check_Consent"
   Check_ConsentClock = new util.Clock();
   text_placeholder2 = new visual.TextStim({
@@ -378,88 +515,7 @@ async function experimentInit() {
     pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: 0.0,
-    depth: -1.0 
-  });
-  
-  // Initialize components for Routine "new_scene"
-  new_sceneClock = new util.Clock();
-  scene = new visual.ImageStim({
-    win : psychoJS.window,
-    name : 'scene', units : undefined, 
-    image : 'default.png', mask : undefined,
-    anchor : 'center',
-    ori : 0.0, 
-    pos : [0, 0.5], 
-    draggable: false,
-    size : [0.75, 0.75],
-    color : new util.Color([1,1,1]), opacity : undefined,
-    flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -1.0 
-  });
-  face = new visual.ImageStim({
-    win : psychoJS.window,
-    name : 'face', units : undefined, 
-    image : 'default.png', mask : undefined,
-    anchor : 'center',
-    ori : 0.0, 
-    pos : [(- 0.35), (- 0.35)], 
-    draggable: false,
-    size : [0.5, 0.5],
-    color : new util.Color([1,1,1]), opacity : undefined,
-    flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -2.0 
-  });
-  item = new visual.ImageStim({
-    win : psychoJS.window,
-    name : 'item', units : undefined, 
-    image : 'default.png', mask : undefined,
-    anchor : 'center',
-    ori : 0.0, 
-    pos : [0.35, (- 0.35)], 
-    draggable: false,
-    size : [0.5, 0.5],
-    color : new util.Color([1,1,1]), opacity : undefined,
-    flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -3.0 
-  });
-  description_2 = new visual.TextBox({
-    win: psychoJS.window,
-    name: 'description_2',
-    text: '',
-    placeholder: 'Type here...',
-    font: 'Arial',
-    pos: [0, 0], 
-    draggable: false,
-    letterHeight: 0.05,
-    lineSpacing: 1.0,
-    size: [1, 0.5],  units: undefined, 
-    ori: 0.0,
-    color: 'white', colorSpace: 'rgb',
-    fillColor: undefined, borderColor: undefined,
-    languageStyle: 'LTR',
-    bold: false, italic: false,
-    opacity: undefined,
-    padding: 0.0,
-    alignment: 'center',
-    overflow: 'visible',
-    editable: false,
-    multiline: true,
-    anchor: 'center',
-    depth: -4.0 
-  });
-  
-  key_resp_4 = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
-  
-  text_continue = new visual.TextStim({
-    win: psychoJS.window,
-    name: 'text_continue',
-    text: 'Press RETURN to continue',
-    font: 'Arial',
-    units: undefined, 
-    pos: [0, (- 0.8)], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
-    languageStyle: 'LTR',
-    color: new util.Color('white'),  opacity: undefined,
-    depth: -6.0 
+    depth: 0.0 
   });
   
   // Initialize components for Routine "Instructions"
@@ -492,46 +548,100 @@ async function experimentInit() {
     depth: 0.0 
   });
   
-  // Initialize components for Routine "Scene_Presentation"
-  Scene_PresentationClock = new util.Clock();
-  scene_description = new visual.TextStim({
+  // Initialize components for Routine "load_scene_pictures"
+  load_scene_picturesClock = new util.Clock();
+  text_placeholder6 = new visual.TextStim({
     win: psychoJS.window,
-    name: 'scene_description',
+    name: 'text_placeholder6',
     text: '',
     font: 'Arial',
     units: undefined, 
-    pos: [0, 0.6], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
+    pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
-    color: new util.Color('white'),  opacity: undefined,
-    depth: 0.0 
+    color: new util.Color('white'),  opacity: 0.0,
+    depth: -1.0 
   });
   
-  scene_image = new visual.ImageStim({
+  // Initialize components for Routine "Scene_Presentation_Triple"
+  Scene_Presentation_TripleClock = new util.Clock();
+  scene_triple = new visual.ImageStim({
     win : psychoJS.window,
-    name : 'scene_image', units : undefined, 
+    name : 'scene_triple', units : undefined, 
     image : 'default.png', mask : undefined,
     anchor : 'center',
     ori : 0.0, 
-    pos : [0, (- 0.1)], 
+    pos : [0, 0], 
     draggable: false,
-    size : undefined,
+    size : [0.5, 0.5],
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
     texRes : 128.0, interpolate : true, depth : -1.0 
   });
-  key_resp_scene = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
-  
-  finish_scene_presentation = new visual.TextStim({
+  face_triple = new visual.ImageStim({
+    win : psychoJS.window,
+    name : 'face_triple', units : undefined, 
+    image : 'default.png', mask : undefined,
+    anchor : 'center',
+    ori : 0.0, 
+    pos : [0, 0], 
+    draggable: false,
+    size : [0.5, 0.5],
+    color : new util.Color([1,1,1]), opacity : undefined,
+    flipHoriz : false, flipVert : false,
+    texRes : 128.0, interpolate : true, depth : -2.0 
+  });
+  item_triple = new visual.ImageStim({
+    win : psychoJS.window,
+    name : 'item_triple', units : undefined, 
+    image : 'default.png', mask : undefined,
+    anchor : 'center',
+    ori : 0.0, 
+    pos : [0, 0], 
+    draggable: false,
+    size : [0.5, 0.5],
+    color : new util.Color([1,1,1]), opacity : undefined,
+    flipHoriz : false, flipVert : false,
+    texRes : 128.0, interpolate : true, depth : -3.0 
+  });
+  description_triple = new visual.TextBox({
     win: psychoJS.window,
-    name: 'finish_scene_presentation',
+    name: 'description_triple',
     text: '',
+    placeholder: 'Type here...',
     font: 'Arial',
-    units: undefined, 
-    pos: [0, (- 0.7)], draggable: false, height: 0.025,  wrapWidth: undefined, ori: 0.0,
+    pos: [0, 0], 
+    draggable: false,
+    letterHeight: 0.05,
+    lineSpacing: 1.0,
+    size: [1, 0.5],  units: undefined, 
+    ori: 0.0,
+    color: 'white', colorSpace: 'rgb',
+    fillColor: undefined, borderColor: undefined,
     languageStyle: 'LTR',
-    color: new util.Color('white'),  opacity: undefined,
+    bold: false, italic: false,
+    opacity: undefined,
+    padding: 0.0,
+    alignment: 'center',
+    overflow: 'visible',
+    editable: false,
+    multiline: true,
+    anchor: 'center',
     depth: -4.0 
   });
+  
+  text_continue_triple = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'text_continue_triple',
+    text: 'Press RETURN to continue',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, (- 0.8)], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: undefined,
+    depth: -5.0 
+  });
+  
+  key_resp_5 = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
   
   // Initialize components for Routine "Scene_Description"
   Scene_DescriptionClock = new util.Clock();
@@ -1072,7 +1182,7 @@ async function experimentInit() {
     pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
-    depth: -1.0 
+    depth: 0.0 
   });
   
   // Initialize components for Routine "Exit"
@@ -1103,9 +1213,118 @@ var t;
 var frameN;
 var continueRoutine;
 var routineForceEnded;
+var Quick_ModeMaxDurationReached;
+var Quick_ModeMaxDuration;
+var Quick_ModeComponents;
+function Quick_ModeRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'Quick_Mode' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    Quick_ModeClock.reset();
+    routineTimer.reset();
+    Quick_ModeMaxDurationReached = false;
+    // update component parameters for each repeat
+    psychoJS.experiment.addData('Quick_Mode.started', globalClock.getTime());
+    Quick_ModeMaxDuration = null
+    // keep track of which components have finished
+    Quick_ModeComponents = [];
+    Quick_ModeComponents.push(text_placeholder5);
+    
+    Quick_ModeComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+       });
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function Quick_ModeRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'Quick_Mode' ---
+    // get current time
+    t = Quick_ModeClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    
+    // *text_placeholder5* updates
+    if (t >= 0.0 && text_placeholder5.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      text_placeholder5.tStart = t;  // (not accounting for frame time here)
+      text_placeholder5.frameNStart = frameN;  // exact frame index
+      
+      text_placeholder5.setAutoDraw(true);
+    }
+    
+    
+    // if text_placeholder5 is active this frame...
+    if (text_placeholder5.status === PsychoJS.Status.STARTED) {
+    }
+    
+    if (quickModeChoiceDone) {
+        continueRoutine = false;
+    }
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    Quick_ModeComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+      }
+    });
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+function Quick_ModeRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'Quick_Mode' ---
+    Quick_ModeComponents.forEach( function(thisComponent) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    });
+    psychoJS.experiment.addData('Quick_Mode.stopped', globalClock.getTime());
+    psychoJS.window._renderer.view.style.display = 'block';
+    
+    psychoJS.experiment.addData('quick_mode', quickMode);
+    
+    console.log('quickMode:', quickMode, '| scenes:', sceneLoopNum, '| faces:', faceRankingLoopNum);
+    // the Routine "Quick_Mode" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
 var Check_ConsentMaxDurationReached;
-var consent_given;
-var consent_declined;
 var consent_done;
 var Check_ConsentMaxDuration;
 var Check_ConsentComponents;
@@ -1123,69 +1342,74 @@ function Check_ConsentRoutineBegin(snapshot) {
     routineTimer.reset();
     Check_ConsentMaxDurationReached = false;
     // update component parameters for each repeat
-    // Hide the PsychoJS canvas temporarily
-    psychoJS.window._renderer.view.style.display = 'none';
-    
-    var overlay = document.createElement('div');
-    overlay.id = 'consent-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
-    
-    // global vars
-    consent_given = false;
-    consent_declined = false;
-    consent_done = false;
-    
-    overlay.innerHTML = '\
-    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:600px;max-height:90vh;overflow-y:auto;">\
-      <h2 style="margin-top:0;">Informed Consent</h2>\
-      <div style="line-height:1.6;font-size:15px;">\
-        <p>This study investigates how different contextual information influences the perception and evaluation of faces. Your responses will be anonymized and used for scientific purposes, and may be included in academic publications.</p>\
-        <p><strong>What You Will Do:</strong></p>\
-        <ul style="margin-top:0;padding-left:20px;">\
-          <li>Read this information sheet and provide informed consent</li>\
-          <li>Evaluate and rank face images together with contextual information</li>\
-          <li>Complete a short demographic questionnaire</li>\
-          <li>Complete a brief debriefing questionnaire</li>\
-        </ul>\
-        <p>This study takes approximately 60 minutes.</p>\
-        <p>Participation is voluntary. You may skip individual tasks or withdraw from the study at any time without giving a reason and without any disadvantage.</p>\
-        <p>Your data will be processed confidentially and used exclusively for scientific research purposes.</p>\
-        <p>Sarah Boidoglou &amp; Savas Gro&szlig;mann (Study Leads) &mdash; sarah.boidoglou@dfki.de, savas.grossmann@dfki.de<br>\
-        Mansi Sharma &amp; Philipp Müller (Supervision) &mdash; mansi.sharma@dfki.de, phmueller@is.mpg.de<br>\
-        DFKI GmbH, Kesselhaus in der Lanolinfabrik, Salzufer 15/16, 10587 Berlin, Germany</p>\
-        <p>By agreeing below, you confirm that you have read and understood this information and voluntarily consent to participate in this study.</p>\
-      </div>\
-      <div style="display:flex;gap:15px;margin-top:25px;">\
-        <button id="consent-decline" style="flex:1;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">I do not agree</button>\
-        <button id="consent-accept" style="flex:1;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">I Accept</button>\
-      </div>\
-    </div>';
-    
-    document.body.appendChild(overlay);
-    
-    document.getElementById('consent-accept').addEventListener('click', function() {
-        consent_given = true;
-        document.body.removeChild(overlay);
-        psychoJS.window._renderer.view.style.display = 'block';
+    if (quickMode) {
+        continueRoutine = false;
         consent_done = true;
-    });
+    } else {
+        // Hide the PsychoJS canvas temporarily
+        psychoJS.window._renderer.view.style.display = 'none';
     
-    document.getElementById('consent-decline').addEventListener('click', function() {
-        consent_declined = true;
-        overlay.querySelector('div').innerHTML =
-            '<h2 style="margin-top:0;">Thank you</h2>' +
-            '<p>You have chosen not to participate. The experiment will now close.</p>';
+        var overlay = document.createElement('div');
+        overlay.id = 'consent-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
     
-        // NOTE: adjust this if your project has its own quit function
-        // (e.g. "quitPsychoJS('', false)") instead of calling psychoJS.quit() directly.
-        setTimeout(function() {
-            psychoJS.quit({message: 'Participant did not consent.', isCompleted: false});
-        }, 3000);
-    });
+        // global vars
+        consent_given = false;
+        consent_declined = false;
+        consent_done = false;
     
-    // get screensize
-    expInfo['windowWidth'] = window.innerWidth;
-    expInfo['windowHeight'] = window.innerHeight;
+        overlay.innerHTML = '\
+        <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:600px;max-height:90vh;overflow-y:auto;">\
+          <h2 style="margin-top:0;">Informed Consent</h2>\
+          <div style="line-height:1.6;font-size:15px;">\
+            <p>This study investigates how different contextual information influences the perception and evaluation of faces. Your responses will be anonymized and used for scientific purposes, and may be included in academic publications.</p>\
+            <p><strong>What You Will Do:</strong></p>\
+            <ul style="margin-top:0;padding-left:20px;">\
+              <li>Read this information sheet and provide informed consent</li>\
+              <li>Evaluate and rank face images together with contextual information</li>\
+              <li>Complete a short demographic questionnaire</li>\
+              <li>Complete a brief debriefing questionnaire</li>\
+            </ul>\
+            <p>This study takes approximately 60 minutes.</p>\
+            <p>Participation is voluntary. You may skip individual tasks or withdraw from the study at any time without giving a reason and without any disadvantage.</p>\
+            <p>Your data will be processed confidentially and used exclusively for scientific research purposes.</p>\
+            <p>Sarah Boidoglou &amp; Savas Gro&szlig;mann (Study Leads) &mdash; sarah.boidoglou@dfki.de, savas.grossmann@dfki.de<br>\
+            Mansi Sharma &amp; Philipp Müller (Supervision) &mdash; mansi.sharma@dfki.de, phmueller@is.mpg.de<br>\
+            DFKI GmbH, Kesselhaus in der Lanolinfabrik, Salzufer 15/16, 10587 Berlin, Germany</p>\
+            <p>By agreeing below, you confirm that you have read and understood this information and voluntarily consent to participate in this study.</p>\
+          </div>\
+          <div style="display:flex;gap:15px;margin-top:25px;">\
+            <button id="consent-decline" style="flex:1;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">I do not agree</button>\
+            <button id="consent-accept" style="flex:1;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">I Accept</button>\
+          </div>\
+        </div>';
+    
+        document.body.appendChild(overlay);
+    
+        document.getElementById('consent-accept').addEventListener('click', function() {
+            consent_given = true;
+            document.body.removeChild(overlay);
+            psychoJS.window._renderer.view.style.display = 'block';
+            consent_done = true;
+        });
+    
+        document.getElementById('consent-decline').addEventListener('click', function() {
+            consent_declined = true;
+            overlay.querySelector('div').innerHTML =
+                '<h2 style="margin-top:0;">Thank you</h2>' +
+                '<p>You have chosen not to participate. The experiment will now close.</p>';
+    
+            // NOTE: adjust this if your project has its own quit function
+            // (e.g. "quitPsychoJS('', false)") instead of calling psychoJS.quit() directly.
+            setTimeout(function() {
+                psychoJS.quit({message: 'Participant did not consent.', isCompleted: false});
+            }, 3000);
+        });
+    
+        // get screensize
+        expInfo['windowWidth'] = window.innerWidth;
+        expInfo['windowHeight'] = window.innerHeight;
+    }
     psychoJS.experiment.addData('Check_Consent.started', globalClock.getTime());
     Check_ConsentMaxDuration = null
     // keep track of which components have finished
@@ -1263,7 +1487,7 @@ function Check_ConsentRoutineEnd(snapshot) {
       }
     });
     psychoJS.experiment.addData('Check_Consent.stopped', globalClock.getTime());
-    psychoJS.experiment.addData('consent_given', consent_given);
+    if (!quickMode) psychoJS.experiment.addData('consent_given', consent_given);
     // the Routine "Check_Consent" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -1277,7 +1501,6 @@ function Check_ConsentRoutineEnd(snapshot) {
 
 
 var Participant_CodeMaxDurationReached;
-var participant_code;
 var pcode_done;
 var Participant_CodeMaxDuration;
 var Participant_CodeComponents;
@@ -1295,108 +1518,78 @@ function Participant_CodeRoutineBegin(snapshot) {
     routineTimer.reset();
     Participant_CodeMaxDurationReached = false;
     // update component parameters for each repeat
-    // Hide the PsychoJS canvas temporarily
-    psychoJS.window._renderer.view.style.display = 'none';
-    
-    var overlay = document.createElement('div');
-    overlay.id = 'pcode-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
-    
-    // global vars
-    participant_code = '';
-    pcode_done = false;
-    
-    overlay.innerHTML = '\
-    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
-      <h2 style="margin-top:0;">Your Participant Code</h2>\
-      <p style="line-height:1.5;">To keep your data strictly confidential while still allowing you to request its deletion later, please generate your unique participant code below. Answer the questions honestly and consistently &ndash; you will need to reproduce the exact same code if you ever want your data removed.</p>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">First letter of your mother\'s first name</label>\
-        <input id="pcode-mother" type="text" maxlength="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;text-transform:uppercase;">\
-      </div>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">First letter of your father\'s first name</label>\
-        <input id="pcode-father" type="text" maxlength="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;text-transform:uppercase;">\
-      </div>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">First letter of the city/town you were born in</label>\
-        <input id="pcode-city" type="text" maxlength="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;text-transform:uppercase;">\
-      </div>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">Day of your birth (1&ndash;31)</label>\
-        <input id="pcode-day" type="number" min="1" max="31" step="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
-      </div>\
-    \
-      <div style="margin-bottom:30px;">\
-        <label style="display:block;margin-bottom:8px;">Year of your birth (e.g., 1998)</label>\
-        <input id="pcode-year" type="number" min="1900" max="2020" step="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
-      </div>\
-    \
-      <button id="pcode-generate" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Generate my code</button>\
-      <p id="pcode-error" style="color:red;display:none;margin-top:10px;">Please fill in all fields correctly.</p>\
-    \
-      <div id="pcode-result-wrap" style="display:none;margin-top:25px;padding-top:20px;border-top:1px solid #444;">\
-        <p>Your participant code is:</p>\
-        <p id="pcode-display" style="font-size:28px;font-weight:bold;letter-spacing:4px;text-align:center;background:#111;padding:15px;border-radius:4px;"></p>\
-        <p style="color:#ffcc66;">Please write this code down now. You will need it if you ever want to request deletion of your data.</p>\
-        <label style="display:flex;align-items:center;gap:8px;margin-top:15px;cursor:pointer;">\
-          <input id="pcode-confirm" type="checkbox" style="width:18px;height:18px;">\
-          I have saved my participant code\
-        </label>\
-        <button id="pcode-continue" style="width:100%;padding:12px;margin-top:15px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;" disabled>Continue</button>\
-      </div>\
-    </div>';
-    
-    document.body.appendChild(overlay);
-    
-    document.getElementById('pcode-generate').addEventListener('click', function() {
-        var mother = document.getElementById('pcode-mother').value.trim();
-        var father = document.getElementById('pcode-father').value.trim();
-        var city = document.getElementById('pcode-city').value.trim();
-        var day = document.getElementById('pcode-day').value;
-        var year = document.getElementById('pcode-year').value;
-    
-        var dayNum = parseInt(day, 10);
-        var yearNum = parseInt(year, 10);
-    
-        var valid = /^[A-Za-z]$/.test(mother) &&
-                    /^[A-Za-z]$/.test(father) &&
-                    /^[A-Za-z]$/.test(city) &&
-                    !isNaN(dayNum) && dayNum >= 1 && dayNum <= 31 &&
-                    !isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2020;
-    
-        if (!valid) {
-            document.getElementById('pcode-error').style.display = 'block';
-            document.getElementById('pcode-result-wrap').style.display = 'none';
-            return;
-        }
-        document.getElementById('pcode-error').style.display = 'none';
-    
-        var dayPadded = String(dayNum).padStart(2, '0');
-        var yearLastDigit = String(yearNum).slice(-1);
-    
-        var code = (mother + father + city).toUpperCase() + dayPadded + yearLastDigit;
-    
-        participant_code = code;
-        document.getElementById('pcode-display').textContent = code;
-        document.getElementById('pcode-result-wrap').style.display = 'block';
-        document.getElementById('pcode-confirm').checked = false;
-        document.getElementById('pcode-continue').disabled = true;
-    });
-    
-    document.getElementById('pcode-confirm').addEventListener('change', function() {
-        document.getElementById('pcode-continue').disabled = !this.checked;
-    });
-    
-    document.getElementById('pcode-continue').addEventListener('click', function() {
-        document.body.removeChild(overlay);
-        psychoJS.window._renderer.view.style.display = 'block';
+    if (quickMode) {
+        continueRoutine = false;
         pcode_done = true;
-    });
+    } else {
+        // Hide the PsychoJS canvas temporarily
+        psychoJS.window._renderer.view.style.display = 'none';
+    
+        // --- random participant code, e.g. K7MP-4RX9 ---
+        // Alphabet without look-alikes (no 0/O, 1/I/L): 31 characters, 8 positions
+        // -> 31^8 = ~850 billion possible codes, so a duplicate is practically impossible.
+        function generateParticipantCode() {
+            var alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+            var limit = 256 - (256 % alphabet.length);   // rejection sampling: no modulo bias
+            var chars = [];
+            while (chars.length < 8) {
+                var buf = new Uint8Array(16);
+                window.crypto.getRandomValues(buf);
+                for (var i = 0; i < buf.length && chars.length < 8; i++) {
+                    if (buf[i] < limit) {
+                        chars.push(alphabet.charAt(buf[i] % alphabet.length));
+                    }
+                }
+            }
+            return chars.slice(0, 4).join('') + '-' + chars.slice(4).join('');
+        }
+    
+        var overlay = document.createElement('div');
+        overlay.id = 'pcode-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
+    
+        // global vars
+        participant_code = generateParticipantCode();
+        pcode_done = false;
+    
+        overlay.innerHTML = '\
+        <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
+          <h2 style="margin-top:0;">Your Participant Code</h2>\
+          <p style="line-height:1.5;">To keep your data confidential while still allowing you to request its deletion later, you have been assigned a random participant code. Please write it down now or take a screenshot &ndash; you will need it if you ever want your data removed. It cannot be recovered later.</p>\
+          <p id="pcode-display" style="font-size:32px;font-weight:bold;letter-spacing:4px;text-align:center;background:#111;padding:20px;border-radius:4px;margin:25px 0 10px 0;"></p>\
+          <button id="pcode-copy" style="width:100%;padding:10px;background:#444;color:white;border:none;border-radius:4px;font-size:14px;cursor:pointer;">Copy code</button>\
+          <label style="display:flex;align-items:center;gap:8px;margin-top:25px;cursor:pointer;">\
+            <input id="pcode-confirm" type="checkbox" style="width:18px;height:18px;">\
+            I have saved my participant code\
+          </label>\
+          <button id="pcode-continue" style="width:100%;padding:12px;margin-top:15px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;" disabled>Continue</button>\
+        </div>';
+    
+        document.body.appendChild(overlay);
+    
+        document.getElementById('pcode-display').textContent = participant_code;
+    
+        document.getElementById('pcode-copy').addEventListener('click', function() {
+            var btn = this;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(participant_code)
+                    .then(function() { btn.textContent = 'Copied!'; })
+                    .catch(function() { btn.textContent = 'Copy failed - please write it down'; });
+            } else {
+                btn.textContent = 'Copy not available - please write it down';
+            }
+        });
+    
+        document.getElementById('pcode-confirm').addEventListener('change', function() {
+            document.getElementById('pcode-continue').disabled = !this.checked;
+        });
+    
+        document.getElementById('pcode-continue').addEventListener('click', function() {
+            document.body.removeChild(overlay);
+            psychoJS.window._renderer.view.style.display = 'block';
+            pcode_done = true;
+        });
+    }
     psychoJS.experiment.addData('Participant_Code.started', globalClock.getTime());
     Participant_CodeMaxDuration = null
     // keep track of which components have finished
@@ -1474,7 +1667,7 @@ function Participant_CodeRoutineEnd(snapshot) {
       }
     });
     psychoJS.experiment.addData('Participant_Code.stopped', globalClock.getTime());
-    psychoJS.experiment.addData('participant_code', participant_code);
+    if (!quickMode) psychoJS.experiment.addData('participant_code', participant_code);
     // the Routine "Participant_Code" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -1488,18 +1681,7 @@ function Participant_CodeRoutineEnd(snapshot) {
 
 
 var DemographicsMaxDurationReached;
-var demo_age;
-var demo_gender;
-var demo_gender_self;
-var demo_native_english;
-var demo_english_level;
-var demo_vision;
-var demo_education;
-var demo_student;
-var demo_field_of_study;
 var demo_done;
-var demo_screenout;
-var demo_screenout_reason;
 var DemographicsMaxDuration;
 var DemographicsComponents;
 function DemographicsRoutineBegin(snapshot) {
@@ -1516,224 +1698,229 @@ function DemographicsRoutineBegin(snapshot) {
     routineTimer.reset();
     DemographicsMaxDurationReached = false;
     // update component parameters for each repeat
-    // Hide the PsychoJS canvas temporarily
-    psychoJS.window._renderer.view.style.display = 'none';
+    if (quickMode) {
+        continueRoutine = false;
+        demo_done = true;
+    } else {
+        // Hide the PsychoJS canvas temporarily
+        psychoJS.window._renderer.view.style.display = 'none';
     
-    // Create overlay form
-    var overlay = document.createElement('div');
-    overlay.id = 'demo-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
+        // Create overlay form
+        var overlay = document.createElement('div');
+        overlay.id = 'demo-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
     
-    // global vars
-    demo_age = '';
-    demo_gender = '';
-    demo_gender_self = '';
-    demo_native_english = '';
-    demo_english_level = '';
-    demo_vision = '';
-    demo_education = '';
-    demo_student = '';
-    demo_field_of_study = '';
-    demo_done = false;
-    demo_screenout = false;
-    demo_screenout_reason = '';
+        // global vars
+        demo_age = '';
+        demo_gender = '';
+        demo_gender_self = '';
+        demo_native_english = '';
+        demo_english_level = '';
+        demo_vision = '';
+        demo_education = '';
+        demo_student = '';
+        demo_field_of_study = '';
+        demo_done = false;
+        demo_screenout = false;
+        demo_screenout_reason = '';
     
-    overlay.innerHTML = '\
-    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
-      <h2 style="margin-top:0;">Demographics</h2>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">Age</label>\
-        <input id="demo-age" type="number" min="1" max="100" step="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
-      </div>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">Gender</label>\
-        <select id="demo-gender" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-          <option value="female">Female</option>\
-          <option value="male">Male</option>\
-          <option value="non_binary">Non-binary / Third gender</option>\
-          <option value="self_describe">Prefer to self-describe</option>\
-          <option value="prefer_not">Prefer not to say</option>\
-        </select>\
-      </div>\
-      <div id="demo-gender-self-wrap" style="display:none;margin-bottom:20px;margin-top:-10px;">\
-        <label style="display:block;margin-bottom:8px;">Please self-describe</label>\
-        <input id="demo-gender-self" type="text" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
-      </div>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">Is English your first / native language?</label>\
-        <select id="demo-native" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-          <option value="yes">Yes</option>\
-          <option value="no">No</option>\
-        </select>\
-      </div>\
-      <div id="demo-english-level-wrap" style="display:none;margin-bottom:20px;margin-top:-10px;">\
-        <label style="display:block;margin-bottom:8px;">Self-rated English proficiency</label>\
-        <select id="demo-english-level" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-          <option value="A1">A1</option>\
-          <option value="A2">A2</option>\
-          <option value="B1">B1</option>\
-          <option value="B2">B2</option>\
-          <option value="C1">C1</option>\
-          <option value="C2">C2</option>\
-          <option value="native_like">Native-like</option>\
-        </select>\
-      </div>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">Do you have normal or corrected-to-normal vision (e.g., wearing glasses/contacts)?</label>\
-        <select id="demo-vision" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-          <option value="yes">Yes</option>\
-          <option value="no">No</option>\
-        </select>\
-      </div>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">Highest level of education</label>\
-        <select id="demo-education" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-          <option value="high_school">High school diploma / Secondary school</option>\
-          <option value="some_college">Some college / university</option>\
-          <option value="bachelor">Bachelor\'s degree</option>\
-          <option value="master">Master\'s degree / Graduate diploma</option>\
-          <option value="doctorate">Doctorate (PhD / MD)</option>\
-          <option value="other">Other</option>\
-        </select>\
-      </div>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">Are you currently a university student?</label>\
-        <select id="demo-student" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-          <option value="yes">Yes</option>\
-          <option value="no">No</option>\
-        </select>\
-      </div>\
-      <div id="demo-field-wrap" style="display:none;margin-bottom:30px;margin-top:-10px;">\
-        <label style="display:block;margin-bottom:8px;">Field of study</label>\
-        <select id="demo-field" style="width:100%;padding:8px;font-size:16px;border-radius:4px;margin-bottom:8px;">\
-          <option value="">-- Select --</option>\
-          <option value="natural_sciences">Natural Sciences</option>\
-          <option value="engineering">Engineering / Technology</option>\
-          <option value="computer_science">Computer Science / IT</option>\
-          <option value="social_sciences">Social Sciences</option>\
-          <option value="psychology">Psychology</option>\
-          <option value="humanities">Humanities</option>\
-          <option value="medicine_health">Medicine / Health Sciences</option>\
-          <option value="business_economics">Business / Economics</option>\
-          <option value="law">Law</option>\
-          <option value="arts">Arts / Design</option>\
-          <option value="education">Education</option>\
-          <option value="other">Other</option>\
-        </select>\
-        <input id="demo-field-other" type="text" placeholder="Please specify" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;display:none;">\
-      </div>\
-    \
-      <button id="demo-submit" style="width:100%;padding:12px;margin-top:10px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
-      <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer all questions.</p>\
-    </div>';
+        overlay.innerHTML = '\
+        <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
+          <h2 style="margin-top:0;">Demographics</h2>\
+        \
+          <div style="margin-bottom:20px;">\
+            <label style="display:block;margin-bottom:8px;">Age</label>\
+            <input id="demo-age" type="number" min="1" max="100" step="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
+          </div>\
+        \
+          <div style="margin-bottom:20px;">\
+            <label style="display:block;margin-bottom:8px;">Gender</label>\
+            <select id="demo-gender" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+              <option value="">-- Select --</option>\
+              <option value="female">Female</option>\
+              <option value="male">Male</option>\
+              <option value="non_binary">Non-binary / Third gender</option>\
+              <option value="self_describe">Prefer to self-describe</option>\
+              <option value="prefer_not">Prefer not to say</option>\
+            </select>\
+          </div>\
+          <div id="demo-gender-self-wrap" style="display:none;margin-bottom:20px;margin-top:-10px;">\
+            <label style="display:block;margin-bottom:8px;">Please self-describe</label>\
+            <input id="demo-gender-self" type="text" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
+          </div>\
+        \
+          <div style="margin-bottom:20px;">\
+            <label style="display:block;margin-bottom:8px;">Is English your first / native language?</label>\
+            <select id="demo-native" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+              <option value="">-- Select --</option>\
+              <option value="yes">Yes</option>\
+              <option value="no">No</option>\
+            </select>\
+          </div>\
+          <div id="demo-english-level-wrap" style="display:none;margin-bottom:20px;margin-top:-10px;">\
+            <label style="display:block;margin-bottom:8px;">Self-rated English proficiency</label>\
+            <select id="demo-english-level" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+              <option value="">-- Select --</option>\
+              <option value="A1">A1</option>\
+              <option value="A2">A2</option>\
+              <option value="B1">B1</option>\
+              <option value="B2">B2</option>\
+              <option value="C1">C1</option>\
+              <option value="C2">C2</option>\
+              <option value="native_like">Native-like</option>\
+            </select>\
+          </div>\
+        \
+          <div style="margin-bottom:20px;">\
+            <label style="display:block;margin-bottom:8px;">Do you have normal or corrected-to-normal vision (e.g., wearing glasses/contacts)?</label>\
+            <select id="demo-vision" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+              <option value="">-- Select --</option>\
+              <option value="yes">Yes</option>\
+              <option value="no">No</option>\
+            </select>\
+          </div>\
+        \
+          <div style="margin-bottom:20px;">\
+            <label style="display:block;margin-bottom:8px;">Highest level of education</label>\
+            <select id="demo-education" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+              <option value="">-- Select --</option>\
+              <option value="high_school">High school diploma / Secondary school</option>\
+              <option value="some_college">Some college / university</option>\
+              <option value="bachelor">Bachelor\'s degree</option>\
+              <option value="master">Master\'s degree / Graduate diploma</option>\
+              <option value="doctorate">Doctorate (PhD / MD)</option>\
+              <option value="other">Other</option>\
+            </select>\
+          </div>\
+        \
+          <div style="margin-bottom:20px;">\
+            <label style="display:block;margin-bottom:8px;">Are you currently a university student?</label>\
+            <select id="demo-student" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+              <option value="">-- Select --</option>\
+              <option value="yes">Yes</option>\
+              <option value="no">No</option>\
+            </select>\
+          </div>\
+          <div id="demo-field-wrap" style="display:none;margin-bottom:30px;margin-top:-10px;">\
+            <label style="display:block;margin-bottom:8px;">Field of study</label>\
+            <select id="demo-field" style="width:100%;padding:8px;font-size:16px;border-radius:4px;margin-bottom:8px;">\
+              <option value="">-- Select --</option>\
+              <option value="natural_sciences">Natural Sciences</option>\
+              <option value="engineering">Engineering / Technology</option>\
+              <option value="computer_science">Computer Science / IT</option>\
+              <option value="social_sciences">Social Sciences</option>\
+              <option value="psychology">Psychology</option>\
+              <option value="humanities">Humanities</option>\
+              <option value="medicine_health">Medicine / Health Sciences</option>\
+              <option value="business_economics">Business / Economics</option>\
+              <option value="law">Law</option>\
+              <option value="arts">Arts / Design</option>\
+              <option value="education">Education</option>\
+              <option value="other">Other</option>\
+            </select>\
+            <input id="demo-field-other" type="text" placeholder="Please specify" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;display:none;">\
+          </div>\
+        \
+          <button id="demo-submit" style="width:100%;padding:12px;margin-top:10px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
+          <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer all questions.</p>\
+        </div>';
     
-    document.body.appendChild(overlay);
+        document.body.appendChild(overlay);
     
-    // --- conditional field toggling ---
-    document.getElementById('demo-gender').addEventListener('change', function() {
-        document.getElementById('demo-gender-self-wrap').style.display =
-            (this.value === 'self_describe') ? 'block' : 'none';
-    });
+        // --- conditional field toggling ---
+        document.getElementById('demo-gender').addEventListener('change', function() {
+            document.getElementById('demo-gender-self-wrap').style.display =
+                (this.value === 'self_describe') ? 'block' : 'none';
+        });
     
-    document.getElementById('demo-native').addEventListener('change', function() {
-        document.getElementById('demo-english-level-wrap').style.display =
-            (this.value === 'no') ? 'block' : 'none';
-    });
+        document.getElementById('demo-native').addEventListener('change', function() {
+            document.getElementById('demo-english-level-wrap').style.display =
+                (this.value === 'no') ? 'block' : 'none';
+        });
     
-    document.getElementById('demo-student').addEventListener('change', function() {
-        document.getElementById('demo-field-wrap').style.display =
-            (this.value === 'yes') ? 'block' : 'none';
-    });
+        document.getElementById('demo-student').addEventListener('change', function() {
+            document.getElementById('demo-field-wrap').style.display =
+                (this.value === 'yes') ? 'block' : 'none';
+        });
     
-    document.getElementById('demo-field').addEventListener('change', function() {
-        document.getElementById('demo-field-other').style.display =
-            (this.value === 'other') ? 'block' : 'none';
-    });
+        document.getElementById('demo-field').addEventListener('change', function() {
+            document.getElementById('demo-field-other').style.display =
+                (this.value === 'other') ? 'block' : 'none';
+        });
     
-    // --- helper: replace overlay content with a screen-out message and quit ---
-    function demoScreenOut(reason) {
-        demo_screenout = true;
-        demo_screenout_reason = reason;
-        overlay.querySelector('div').innerHTML =
-            '<h2 style="margin-top:0;">Thank you</h2>' +
-            '<p>' + reason + '</p>' +
-            '<p>Unfortunately you do not meet the eligibility criteria for this study. The experiment will now close.</p>';
+        // --- helper: replace overlay content with a screen-out message and quit ---
+        function demoScreenOut(reason) {
+            demo_screenout = true;
+            demo_screenout_reason = reason;
+            overlay.querySelector('div').innerHTML =
+                '<h2 style="margin-top:0;">Thank you</h2>' +
+                '<p>' + reason + '</p>' +
+                '<p>Unfortunately you do not meet the eligibility criteria for this study. The experiment will now close.</p>';
     
-        setTimeout(function() {
-            psychoJS.quit({message: reason, isCompleted: false});
-        }, 4000);
-    }
-    
-    document.getElementById('demo-submit').addEventListener('click', function() {
-        var age = document.getElementById('demo-age').value;
-        var gender = document.getElementById('demo-gender').value;
-        var genderSelf = document.getElementById('demo-gender-self').value;
-        var nativeEnglish = document.getElementById('demo-native').value;
-        var englishLevel = document.getElementById('demo-english-level').value;
-        var vision = document.getElementById('demo-vision').value;
-        var education = document.getElementById('demo-education').value;
-        var student = document.getElementById('demo-student').value;
-        var field = document.getElementById('demo-field').value;
-        var fieldOther = document.getElementById('demo-field-other').value;
-    
-        // --- required-field validation ---
-        var missing = !age || !gender || !nativeEnglish || !vision ||
-                      !education || !student;
-    
-        if (gender === 'self_describe' && !genderSelf.trim()) missing = true;
-        if (nativeEnglish === 'no' && !englishLevel) missing = true;
-        if (student === 'yes' && !field) missing = true;
-        if (student === 'yes' && field === 'other' && !fieldOther.trim()) missing = true;
-    
-        var ageNum = parseInt(age, 10);
-        if (!age || isNaN(ageNum) || ageNum < 1 || ageNum > 100) missing = true;
-    
-        if (missing) {
-            document.getElementById('demo-error').style.display = 'block';
-            return;
+            setTimeout(function() {
+                psychoJS.quit({message: reason, isCompleted: false});
+            }, 4000);
         }
     
-        // --- eligibility / screen-out checks ---
-        if (ageNum < 18) {
-            demoScreenOut('You must be 18 years or older to participate in this study.');
-            return;
-        }
+        document.getElementById('demo-submit').addEventListener('click', function() {
+            var age = document.getElementById('demo-age').value;
+            var gender = document.getElementById('demo-gender').value;
+            var genderSelf = document.getElementById('demo-gender-self').value;
+            var nativeEnglish = document.getElementById('demo-native').value;
+            var englishLevel = document.getElementById('demo-english-level').value;
+            var vision = document.getElementById('demo-vision').value;
+            var education = document.getElementById('demo-education').value;
+            var student = document.getElementById('demo-student').value;
+            var field = document.getElementById('demo-field').value;
+            var fieldOther = document.getElementById('demo-field-other').value;
     
-        if (nativeEnglish === 'no') {
-            var levelOrder = {A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6, native_like: 7};
-            if (levelOrder[englishLevel] < levelOrder['B2']) {
-                demoScreenOut('This study requires an English proficiency of at least B2.');
+            // --- required-field validation ---
+            var missing = !age || !gender || !nativeEnglish || !vision ||
+                          !education || !student;
+    
+            if (gender === 'self_describe' && !genderSelf.trim()) missing = true;
+            if (nativeEnglish === 'no' && !englishLevel) missing = true;
+            if (student === 'yes' && !field) missing = true;
+            if (student === 'yes' && field === 'other' && !fieldOther.trim()) missing = true;
+    
+            var ageNum = parseInt(age, 10);
+            if (!age || isNaN(ageNum) || ageNum < 1 || ageNum > 100) missing = true;
+    
+            if (missing) {
+                document.getElementById('demo-error').style.display = 'block';
                 return;
             }
-        }
     
-        // --- store in global vars, save in RoutineEnd ---
-        demo_age = ageNum;
-        demo_gender = (gender === 'self_describe') ? genderSelf.trim() : gender;
-        demo_native_english = nativeEnglish;
-        demo_english_level = (nativeEnglish === 'no') ? englishLevel : 'native';
-        demo_vision = vision;
-        demo_education = education;
-        demo_student = student;
-        demo_field_of_study = (student === 'yes') ? ((field === 'other') ? fieldOther.trim() : field) : '';
+            // --- eligibility / screen-out checks ---
+            if (ageNum < 18) {
+                demoScreenOut('You must be 18 years or older to participate in this study.');
+                return;
+            }
     
-        // clean up
-        document.body.removeChild(overlay);
-        psychoJS.window._renderer.view.style.display = 'block';
-        demo_done = true;
-    });
+            if (nativeEnglish === 'no') {
+                var levelOrder = {A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6, native_like: 7};
+                if (levelOrder[englishLevel] < levelOrder['B2']) {
+                    demoScreenOut('This study requires an English proficiency of at least B2.');
+                    return;
+                }
+            }
+    
+            // --- store in global vars, save in RoutineEnd ---
+            demo_age = ageNum;
+            demo_gender = (gender === 'self_describe') ? genderSelf.trim() : gender;
+            demo_native_english = nativeEnglish;
+            demo_english_level = (nativeEnglish === 'no') ? englishLevel : 'native';
+            demo_vision = vision;
+            demo_education = education;
+            demo_student = student;
+            demo_field_of_study = (student === 'yes') ? ((field === 'other') ? fieldOther.trim() : field) : '';
+    
+            // clean up
+            document.body.removeChild(overlay);
+            psychoJS.window._renderer.view.style.display = 'block';
+            demo_done = true;
+        });
+    }
     psychoJS.experiment.addData('Demographics.started', globalClock.getTime());
     DemographicsMaxDuration = null
     // keep track of which components have finished
@@ -1756,9 +1943,6 @@ function DemographicsRoutineEachFrame() {
     t = DemographicsClock.getTime();
     frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
     // update/draw components on each frame
-    if (demo_done) {
-        continueRoutine = false;
-    }
     
     // *text_placeholder3* updates
     if (t >= 0.0 && text_placeholder3.status === PsychoJS.Status.NOT_STARTED) {
@@ -1774,6 +1958,9 @@ function DemographicsRoutineEachFrame() {
     if (text_placeholder3.status === PsychoJS.Status.STARTED) {
     }
     
+    if (demo_done) {
+        continueRoutine = false;
+    }
     // check for quit (typically the Esc key)
     if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
       return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
@@ -1811,20 +1998,22 @@ function DemographicsRoutineEnd(snapshot) {
       }
     });
     psychoJS.experiment.addData('Demographics.stopped', globalClock.getTime());
-    // ensure canvas is visible again in case something went wrong
-    psychoJS.window._renderer.view.style.display = 'block';
-    // save questionnaire data
-    psychoJS.experiment.addData('age', demo_age);
-    psychoJS.experiment.addData('gender', demo_gender);
-    psychoJS.experiment.addData('native_english', demo_native_english);
-    psychoJS.experiment.addData('english_level', demo_english_level);
-    psychoJS.experiment.addData('vision', demo_vision);
-    psychoJS.experiment.addData('education', demo_education);
-    psychoJS.experiment.addData('student', demo_student);
-    psychoJS.experiment.addData('field_of_study', demo_field_of_study);
-    psychoJS.experiment.nextEntry();
-    // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
-    routineTimer.reset();
+    if (!quickMode) {
+        // ensure canvas is visible again in case something went wrong
+        psychoJS.window._renderer.view.style.display = 'block';
+        // save questionnaire data
+        psychoJS.experiment.addData('age', demo_age);
+        psychoJS.experiment.addData('gender', demo_gender);
+        psychoJS.experiment.addData('native_english', demo_native_english);
+        psychoJS.experiment.addData('english_level', demo_english_level);
+        psychoJS.experiment.addData('vision', demo_vision);
+        psychoJS.experiment.addData('education', demo_education);
+        psychoJS.experiment.addData('student', demo_student);
+        psychoJS.experiment.addData('field_of_study', demo_field_of_study);
+        psychoJS.experiment.nextEntry();
+        // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
+        routineTimer.reset();
+    }
     // the Routine "Demographics" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -1858,9 +2047,6 @@ function test_trialsLoopBegin(test_trialsLoopScheduler, snapshot) {
       snapshot = test_trials.getSnapshot();
     
       test_trialsLoopScheduler.add(importConditions(snapshot));
-      test_trialsLoopScheduler.add(new_sceneRoutineBegin(snapshot));
-      test_trialsLoopScheduler.add(new_sceneRoutineEachFrame());
-      test_trialsLoopScheduler.add(new_sceneRoutineEnd(snapshot));
       test_trialsLoopScheduler.add(test_trialsLoopEndIteration(test_trialsLoopScheduler, snapshot));
     });
     
@@ -1909,7 +2095,7 @@ function Scene_LoopLoopBegin(Scene_LoopLoopScheduler, snapshot) {
     // set up handler to look after randomisation of conditions etc
     Scene_Loop = new TrialHandler({
       psychoJS: psychoJS,
-      nReps: 20, method: TrialHandler.Method.SEQUENTIAL,
+      nReps: sceneLoopNum, method: TrialHandler.Method.SEQUENTIAL,
       extraInfo: expInfo, originPath: undefined,
       trialList: conditionsFile,
       seed: undefined, name: 'Scene_Loop'
@@ -1922,9 +2108,12 @@ function Scene_LoopLoopBegin(Scene_LoopLoopScheduler, snapshot) {
       snapshot = Scene_Loop.getSnapshot();
     
       Scene_LoopLoopScheduler.add(importConditions(snapshot));
-      Scene_LoopLoopScheduler.add(Scene_PresentationRoutineBegin(snapshot));
-      Scene_LoopLoopScheduler.add(Scene_PresentationRoutineEachFrame());
-      Scene_LoopLoopScheduler.add(Scene_PresentationRoutineEnd(snapshot));
+      Scene_LoopLoopScheduler.add(load_scene_picturesRoutineBegin(snapshot));
+      Scene_LoopLoopScheduler.add(load_scene_picturesRoutineEachFrame());
+      Scene_LoopLoopScheduler.add(load_scene_picturesRoutineEnd(snapshot));
+      Scene_LoopLoopScheduler.add(Scene_Presentation_TripleRoutineBegin(snapshot));
+      Scene_LoopLoopScheduler.add(Scene_Presentation_TripleRoutineEachFrame());
+      Scene_LoopLoopScheduler.add(Scene_Presentation_TripleRoutineEnd(snapshot));
       Scene_LoopLoopScheduler.add(Scene_DescriptionRoutineBegin(snapshot));
       Scene_LoopLoopScheduler.add(Scene_DescriptionRoutineEachFrame());
       Scene_LoopLoopScheduler.add(Scene_DescriptionRoutineEnd(snapshot));
@@ -1954,7 +2143,7 @@ function Face_Ranking_LoopLoopBegin(Face_Ranking_LoopLoopScheduler, snapshot) {
     // set up handler to look after randomisation of conditions etc
     Face_Ranking_Loop = new TrialHandler({
       psychoJS: psychoJS,
-      nReps: 8, method: TrialHandler.Method.SEQUENTIAL,
+      nReps: faceRankingLoopNum, method: TrialHandler.Method.SEQUENTIAL,
       extraInfo: expInfo, originPath: undefined,
       trialList: undefined,
       seed: undefined, name: 'Face_Ranking_Loop'
@@ -2237,259 +2426,6 @@ function IAT_blocksLoopEndIteration(scheduler, snapshot) {
 }
 
 
-var new_sceneMaxDurationReached;
-var scene_position_slot;
-var face_position_slot;
-var item_position_slot;
-var _key_resp_4_allKeys;
-var new_sceneMaxDuration;
-var new_sceneComponents;
-function new_sceneRoutineBegin(snapshot) {
-  return async function () {
-    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
-    
-    //--- Prepare to start Routine 'new_scene' ---
-    t = 0;
-    frameN = -1;
-    continueRoutine = true; // until we're told otherwise
-    // keep track of whether this Routine was forcibly ended
-    routineForceEnded = false;
-    new_sceneClock.reset();
-    routineTimer.reset();
-    new_sceneMaxDurationReached = false;
-    // update component parameters for each repeat
-    // Jeder Slot hat eine feste Position UND eine feste Größe,
-    // damit das Layout immer gleich aussieht, egal welches Bild wo landet.
-    var sceneSlots = [
-        { pos: [0, 0.5],        size: [0.75, 0.75] },
-        { pos: [-0.35, -0.35],  size: [0.5, 0.5] },
-        { pos: [0.35, -0.35],   size: [0.5, 0.5] }
-    ];
-    
-    // Kopie mischen (Fisher-Yates Shuffle)
-    var shuffledSlots = sceneSlots.slice();
-    for (var i = shuffledSlots.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var temp = shuffledSlots[i];
-        shuffledSlots[i] = shuffledSlots[j];
-        shuffledSlots[j] = temp;
-    }
-    
-    scene.setPos(shuffledSlots[0].pos);
-    scene.setSize(shuffledSlots[0].size);
-    
-    face.setPos(shuffledSlots[1].pos);
-    face.setSize(shuffledSlots[1].size);
-    
-    item.setPos(shuffledSlots[2].pos);
-    item.setSize(shuffledSlots[2].size);
-    
-    // merken, welcher Slot (1 = oben groß, 2 = unten links, 3 = unten rechts) an wen ging
-    scene_position_slot = sceneSlots.indexOf(shuffledSlots[0]) + 1;
-    face_position_slot = sceneSlots.indexOf(shuffledSlots[1]) + 1;
-    item_position_slot = sceneSlots.indexOf(shuffledSlots[2]) + 1;
-    scene.setImage(scene_test);
-    face.setImage(face_test);
-    item.setImage(item_test);
-    description_2.setText(description_test);
-    key_resp_4.keys = undefined;
-    key_resp_4.rt = undefined;
-    _key_resp_4_allKeys = [];
-    psychoJS.experiment.addData('new_scene.started', globalClock.getTime());
-    new_sceneMaxDuration = null
-    // keep track of which components have finished
-    new_sceneComponents = [];
-    new_sceneComponents.push(scene);
-    new_sceneComponents.push(face);
-    new_sceneComponents.push(item);
-    new_sceneComponents.push(description_2);
-    new_sceneComponents.push(key_resp_4);
-    new_sceneComponents.push(text_continue);
-    
-    new_sceneComponents.forEach( function(thisComponent) {
-      if ('status' in thisComponent)
-        thisComponent.status = PsychoJS.Status.NOT_STARTED;
-       });
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-function new_sceneRoutineEachFrame() {
-  return async function () {
-    //--- Loop for each frame of Routine 'new_scene' ---
-    // get current time
-    t = new_sceneClock.getTime();
-    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
-    // update/draw components on each frame
-    
-    // *scene* updates
-    if (t >= 0.0 && scene.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      scene.tStart = t;  // (not accounting for frame time here)
-      scene.frameNStart = frameN;  // exact frame index
-      
-      scene.setAutoDraw(true);
-    }
-    
-    
-    // if scene is active this frame...
-    if (scene.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *face* updates
-    if (t >= 0.0 && face.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      face.tStart = t;  // (not accounting for frame time here)
-      face.frameNStart = frameN;  // exact frame index
-      
-      face.setAutoDraw(true);
-    }
-    
-    
-    // if face is active this frame...
-    if (face.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *item* updates
-    if (t >= 0.0 && item.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      item.tStart = t;  // (not accounting for frame time here)
-      item.frameNStart = frameN;  // exact frame index
-      
-      item.setAutoDraw(true);
-    }
-    
-    
-    // if item is active this frame...
-    if (item.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *description_2* updates
-    if (t >= 0.0 && description_2.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      description_2.tStart = t;  // (not accounting for frame time here)
-      description_2.frameNStart = frameN;  // exact frame index
-      
-      description_2.setAutoDraw(true);
-    }
-    
-    
-    // if description_2 is active this frame...
-    if (description_2.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *key_resp_4* updates
-    if (t >= 0.0 && key_resp_4.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      key_resp_4.tStart = t;  // (not accounting for frame time here)
-      key_resp_4.frameNStart = frameN;  // exact frame index
-      
-      // keyboard checking is just starting
-      psychoJS.window.callOnFlip(function() { key_resp_4.clock.reset(); });  // t=0 on next screen flip
-      psychoJS.window.callOnFlip(function() { key_resp_4.start(); }); // start on screen flip
-      psychoJS.window.callOnFlip(function() { key_resp_4.clearEvents(); });
-    }
-    
-    // if key_resp_4 is active this frame...
-    if (key_resp_4.status === PsychoJS.Status.STARTED) {
-      let theseKeys = key_resp_4.getKeys({
-        keyList: typeof 'return' === 'string' ? ['return'] : 'return', 
-        waitRelease: false
-      });
-      _key_resp_4_allKeys = _key_resp_4_allKeys.concat(theseKeys);
-      if (_key_resp_4_allKeys.length > 0) {
-        key_resp_4.keys = _key_resp_4_allKeys[_key_resp_4_allKeys.length - 1].name;  // just the last key pressed
-        key_resp_4.rt = _key_resp_4_allKeys[_key_resp_4_allKeys.length - 1].rt;
-        key_resp_4.duration = _key_resp_4_allKeys[_key_resp_4_allKeys.length - 1].duration;
-        // a response ends the routine
-        continueRoutine = false;
-      }
-    }
-    
-    
-    // *text_continue* updates
-    if (t >= 0.0 && text_continue.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      text_continue.tStart = t;  // (not accounting for frame time here)
-      text_continue.frameNStart = frameN;  // exact frame index
-      
-      text_continue.setAutoDraw(true);
-    }
-    
-    
-    // if text_continue is active this frame...
-    if (text_continue.status === PsychoJS.Status.STARTED) {
-    }
-    
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
-    // check if the Routine should terminate
-    if (!continueRoutine) {  // a component has requested a forced-end of Routine
-      routineForceEnded = true;
-      return Scheduler.Event.NEXT;
-    }
-    
-    continueRoutine = false;  // reverts to True if at least one component still running
-    new_sceneComponents.forEach( function(thisComponent) {
-      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
-        continueRoutine = true;
-      }
-    });
-    
-    // refresh the screen if continuing
-    if (continueRoutine) {
-      return Scheduler.Event.FLIP_REPEAT;
-    } else {
-      return Scheduler.Event.NEXT;
-    }
-  };
-}
-
-
-function new_sceneRoutineEnd(snapshot) {
-  return async function () {
-    //--- Ending Routine 'new_scene' ---
-    new_sceneComponents.forEach( function(thisComponent) {
-      if (typeof thisComponent.setAutoDraw === 'function') {
-        thisComponent.setAutoDraw(false);
-      }
-    });
-    psychoJS.experiment.addData('new_scene.stopped', globalClock.getTime());
-    psychoJS.experiment.addData('scene_position_slot', scene_position_slot);
-    psychoJS.experiment.addData('face_position_slot', face_position_slot);
-    psychoJS.experiment.addData('item_position_slot', item_position_slot);
-    // update the trial handler
-    if (currentLoop instanceof MultiStairHandler) {
-      currentLoop.addResponse(key_resp_4.corr, level);
-    }
-    psychoJS.experiment.addData('key_resp_4.keys', key_resp_4.keys);
-    if (typeof key_resp_4.keys !== 'undefined') {  // we had a response
-        psychoJS.experiment.addData('key_resp_4.rt', key_resp_4.rt);
-        psychoJS.experiment.addData('key_resp_4.duration', key_resp_4.duration);
-        routineTimer.reset();
-        }
-    
-    key_resp_4.stop();
-    // the Routine "new_scene" was not non-slip safe, so reset the non-slip timer
-    routineTimer.reset();
-    
-    // Routines running outside a loop should always advance the datafile row
-    if (currentLoop === psychoJS.experiment) {
-      psychoJS.experiment.nextEntry(snapshot);
-    }
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
 var InstructionsMaxDurationReached;
 var _key_resp_allKeys;
 var InstructionsMaxDuration;
@@ -2641,6 +2577,7 @@ function InstructionsRoutineEnd(snapshot) {
 
 var Condition_LoadingMaxDurationReached;
 var conditionReady;
+var conditionFailed;
 var condition;
 var conditionsFile;
 var Condition_LoadingMaxDuration;
@@ -2660,36 +2597,30 @@ function Condition_LoadingRoutineBegin(snapshot) {
     Condition_LoadingMaxDurationReached = false;
     // update component parameters for each repeat
     conditionReady = false;
+    conditionFailed = false;
     condition = null;
     conditionsFile = null;
     
-    fetch(
-        "https://pipe.jspsych.org/api/condition/",
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "*/*"
-            },
-            body: JSON.stringify({
-                experimentID: "H2YyJU9MbEIU"
-            })
-        }
-    )
-    .then(response => response.json())
-    .then(data => {
-        condition = data.condition;
-        conditionsFile = `resources/conditions/condition_${condition}.xlsx`;
-    
-        console.log("Condition:", condition);
-        conditionReady = true;
-        console.log("DEBUG condition:", condition, "conditionsFile:", conditionsFile);
+    fetch("https://pipe.jspsych.org/api/condition/", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "Accept": "*/*"},
+        body: JSON.stringify({experimentID: "eonAagK4IATa"})
     })
-    .catch(error => {
-        console.error("Condition request failed:", error);
-        condition = 1;
-        conditionsFile = `resources/conditions/condition_${condition}.xlsx`;
+    .then(function(r) {
+        return r.json().then(function(d) { return {ok: r.ok, data: d}; });
+    })
+    .then(function(res) {
+        var c = res.data.condition;
+        if (!res.ok || res.data.error || !Number.isInteger(c) || c < 0 || c > 3) {
+            throw new Error("Bad condition response: " + JSON.stringify(res.data));
+        }
+        condition = c;
+        conditionsFile = "resources/conditions/condition_" + condition + ".xlsx";
         conditionReady = true;
+    })
+    .catch(function(error) {
+        console.error("Condition request failed:", error);
+        conditionFailed = true;   // NO fallback condition
     });
     psychoJS.experiment.addData('Condition_Loading.started', globalClock.getTime());
     Condition_LoadingMaxDuration = null
@@ -2732,11 +2663,18 @@ function Condition_LoadingRoutineEachFrame() {
         return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
     }
     
-    if (conditionReady) {
-        return Scheduler.Event.NEXT;
-    } else {
+    if (conditionFailed) {
+        wait_text.setText('The experiment could not be started. Please close this window and contact the study leads.');
+        if (!window._condQuitScheduled) {
+            window._condQuitScheduled = true;
+            setTimeout(function() { psychoJS.quit({message: 'Condition assignment failed.', isCompleted: false}); }, 8000);
+        }
         return Scheduler.Event.FLIP_REPEAT;
     }
+    if (conditionReady) {
+        return Scheduler.Event.NEXT;
+    }
+    return Scheduler.Event.FLIP_REPEAT;
     // check for quit (typically the Esc key)
     if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
       return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
@@ -2787,39 +2725,42 @@ function Condition_LoadingRoutineEnd(snapshot) {
 }
 
 
-var Scene_PresentationMaxDurationReached;
-var _key_resp_scene_allKeys;
-var Scene_PresentationMaxDuration;
-var Scene_PresentationComponents;
-function Scene_PresentationRoutineBegin(snapshot) {
+var load_scene_picturesMaxDurationReached;
+var load_scene_picturesMaxDuration;
+var load_scene_picturesComponents;
+function load_scene_picturesRoutineBegin(snapshot) {
   return async function () {
     TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
     
-    //--- Prepare to start Routine 'Scene_Presentation' ---
+    //--- Prepare to start Routine 'load_scene_pictures' ---
     t = 0;
     frameN = -1;
     continueRoutine = true; // until we're told otherwise
     // keep track of whether this Routine was forcibly ended
     routineForceEnded = false;
-    Scene_PresentationClock.reset();
+    load_scene_picturesClock.reset();
     routineTimer.reset();
-    Scene_PresentationMaxDurationReached = false;
+    load_scene_picturesMaxDurationReached = false;
     // update component parameters for each repeat
-    scene_description.setText(context_text);
-    scene_image.setImage(((("resources/scenes/" + gender) + "/") + image_path));
-    key_resp_scene.keys = undefined;
-    key_resp_scene.rt = undefined;
-    _key_resp_scene_allKeys = [];
-    psychoJS.experiment.addData('Scene_Presentation.started', globalClock.getTime());
-    Scene_PresentationMaxDuration = null
+    facesPromise = null;
+    sceneImagesReady = false;
+    var sceneRes = [scene_image, face_image, item_image].map(function (p) {
+        return { name: p, path: p };
+    });
+    psychoJS.serverManager.prepareResources(sceneRes)
+        .then(function () { sceneImagesReady = true; startFacePrefetch(); })
+        .catch(function (e) {
+            console.error("Scene image load failed:", sceneRes, e);
+            sceneImagesReady = true;
+            startFacePrefetch();
+        });
+    psychoJS.experiment.addData('load_scene_pictures.started', globalClock.getTime());
+    load_scene_picturesMaxDuration = null
     // keep track of which components have finished
-    Scene_PresentationComponents = [];
-    Scene_PresentationComponents.push(scene_description);
-    Scene_PresentationComponents.push(scene_image);
-    Scene_PresentationComponents.push(key_resp_scene);
-    Scene_PresentationComponents.push(finish_scene_presentation);
+    load_scene_picturesComponents = [];
+    load_scene_picturesComponents.push(text_placeholder6);
     
-    Scene_PresentationComponents.forEach( function(thisComponent) {
+    load_scene_picturesComponents.forEach( function(thisComponent) {
       if ('status' in thisComponent)
         thisComponent.status = PsychoJS.Status.NOT_STARTED;
        });
@@ -2828,89 +2769,29 @@ function Scene_PresentationRoutineBegin(snapshot) {
 }
 
 
-function Scene_PresentationRoutineEachFrame() {
+function load_scene_picturesRoutineEachFrame() {
   return async function () {
-    //--- Loop for each frame of Routine 'Scene_Presentation' ---
+    //--- Loop for each frame of Routine 'load_scene_pictures' ---
     // get current time
-    t = Scene_PresentationClock.getTime();
+    t = load_scene_picturesClock.getTime();
     frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
     // update/draw components on each frame
+    if (sceneImagesReady) {
+       continueRoutine = false;
+    }
     
-    // *scene_description* updates
-    if (t >= 0.0 && scene_description.status === PsychoJS.Status.NOT_STARTED) {
+    // *text_placeholder6* updates
+    if (t >= 0.0 && text_placeholder6.status === PsychoJS.Status.NOT_STARTED) {
       // keep track of start time/frame for later
-      scene_description.tStart = t;  // (not accounting for frame time here)
-      scene_description.frameNStart = frameN;  // exact frame index
+      text_placeholder6.tStart = t;  // (not accounting for frame time here)
+      text_placeholder6.frameNStart = frameN;  // exact frame index
       
-      scene_description.setAutoDraw(true);
+      text_placeholder6.setAutoDraw(true);
     }
     
     
-    // if scene_description is active this frame...
-    if (scene_description.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *scene_image* updates
-    if (t >= 0.0 && scene_image.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      scene_image.tStart = t;  // (not accounting for frame time here)
-      scene_image.frameNStart = frameN;  // exact frame index
-      
-      scene_image.setAutoDraw(true);
-    }
-    
-    
-    // if scene_image is active this frame...
-    if (scene_image.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *key_resp_scene* updates
-    if (t >= 0.0 && key_resp_scene.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      key_resp_scene.tStart = t;  // (not accounting for frame time here)
-      key_resp_scene.frameNStart = frameN;  // exact frame index
-      
-      // keyboard checking is just starting
-      psychoJS.window.callOnFlip(function() { key_resp_scene.clock.reset(); });  // t=0 on next screen flip
-      psychoJS.window.callOnFlip(function() { key_resp_scene.start(); }); // start on screen flip
-      psychoJS.window.callOnFlip(function() { key_resp_scene.clearEvents(); });
-    }
-    
-    // if key_resp_scene is active this frame...
-    if (key_resp_scene.status === PsychoJS.Status.STARTED) {
-      let theseKeys = key_resp_scene.getKeys({
-        keyList: typeof 'return' === 'string' ? ['return'] : 'return', 
-        waitRelease: false
-      });
-      _key_resp_scene_allKeys = _key_resp_scene_allKeys.concat(theseKeys);
-      if (_key_resp_scene_allKeys.length > 0) {
-        key_resp_scene.keys = _key_resp_scene_allKeys[_key_resp_scene_allKeys.length - 1].name;  // just the last key pressed
-        key_resp_scene.rt = _key_resp_scene_allKeys[_key_resp_scene_allKeys.length - 1].rt;
-        key_resp_scene.duration = _key_resp_scene_allKeys[_key_resp_scene_allKeys.length - 1].duration;
-        // a response ends the routine
-        continueRoutine = false;
-      }
-    }
-    
-    
-    // *finish_scene_presentation* updates
-    if (t >= 0 && finish_scene_presentation.status === PsychoJS.Status.NOT_STARTED) {
-      // update params
-      finish_scene_presentation.setText('Press ENTER to continue', false);
-      // keep track of start time/frame for later
-      finish_scene_presentation.tStart = t;  // (not accounting for frame time here)
-      finish_scene_presentation.frameNStart = frameN;  // exact frame index
-      
-      finish_scene_presentation.setAutoDraw(true);
-    }
-    
-    
-    // if finish_scene_presentation is active this frame...
-    if (finish_scene_presentation.status === PsychoJS.Status.STARTED) {
-      // update params
-      finish_scene_presentation.setText('Press ENTER to continue', false);
+    // if text_placeholder6 is active this frame...
+    if (text_placeholder6.status === PsychoJS.Status.STARTED) {
     }
     
     // check for quit (typically the Esc key)
@@ -2925,7 +2806,7 @@ function Scene_PresentationRoutineEachFrame() {
     }
     
     continueRoutine = false;  // reverts to True if at least one component still running
-    Scene_PresentationComponents.forEach( function(thisComponent) {
+    load_scene_picturesComponents.forEach( function(thisComponent) {
       if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
         continueRoutine = true;
       }
@@ -2941,29 +2822,269 @@ function Scene_PresentationRoutineEachFrame() {
 }
 
 
-function Scene_PresentationRoutineEnd(snapshot) {
+function load_scene_picturesRoutineEnd(snapshot) {
   return async function () {
-    //--- Ending Routine 'Scene_Presentation' ---
-    Scene_PresentationComponents.forEach( function(thisComponent) {
+    //--- Ending Routine 'load_scene_pictures' ---
+    load_scene_picturesComponents.forEach( function(thisComponent) {
       if (typeof thisComponent.setAutoDraw === 'function') {
         thisComponent.setAutoDraw(false);
       }
     });
-    psychoJS.experiment.addData('Scene_Presentation.stopped', globalClock.getTime());
+    psychoJS.experiment.addData('load_scene_pictures.stopped', globalClock.getTime());
+    // the Routine "load_scene_pictures" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+var Scene_Presentation_TripleMaxDurationReached;
+var scene_position_slot;
+var face_position_slot;
+var item_position_slot;
+var _key_resp_5_allKeys;
+var Scene_Presentation_TripleMaxDuration;
+var Scene_Presentation_TripleComponents;
+function Scene_Presentation_TripleRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'Scene_Presentation_Triple' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    Scene_Presentation_TripleClock.reset();
+    routineTimer.reset();
+    Scene_Presentation_TripleMaxDurationReached = false;
+    // update component parameters for each repeat
+    // Jeder Slot hat eine feste Position UND eine feste Größe,
+    // damit das Layout immer gleich aussieht, egal welches Bild wo landet.
+    var sceneSlots = [
+        { pos: [0, 0.5],        size: [0.75, 0.75] },
+        { pos: [-0.35, -0.35],  size: [0.5, 0.5] },
+        { pos: [0.35, -0.35],   size: [0.5, 0.5] }
+    ];
+    
+    // Kopie mischen (Fisher-Yates Shuffle)
+    var shuffledSlots = sceneSlots.slice();
+    for (var i = shuffledSlots.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = shuffledSlots[i];
+        shuffledSlots[i] = shuffledSlots[j];
+        shuffledSlots[j] = temp;
+    }
+    
+    scene_triple.setPos(shuffledSlots[0].pos);
+    scene_triple.setSize(shuffledSlots[0].size);
+    
+    face_triple.setPos(shuffledSlots[1].pos);
+    face_triple.setSize(shuffledSlots[1].size);
+    
+    item_triple.setPos(shuffledSlots[2].pos);
+    item_triple.setSize(shuffledSlots[2].size);
+    
+    // merken, welcher Slot (1 = oben groß, 2 = unten links, 3 = unten rechts) an wen ging
+    scene_position_slot = sceneSlots.indexOf(shuffledSlots[0]) + 1;
+    face_position_slot = sceneSlots.indexOf(shuffledSlots[1]) + 1;
+    item_position_slot = sceneSlots.indexOf(shuffledSlots[2]) + 1;
+    scene_triple.setImage(scene_image);
+    face_triple.setImage(face_image);
+    item_triple.setImage(item_image);
+    description_triple.setText(context_text);
+    key_resp_5.keys = undefined;
+    key_resp_5.rt = undefined;
+    _key_resp_5_allKeys = [];
+    psychoJS.experiment.addData('Scene_Presentation_Triple.started', globalClock.getTime());
+    Scene_Presentation_TripleMaxDuration = null
+    // keep track of which components have finished
+    Scene_Presentation_TripleComponents = [];
+    Scene_Presentation_TripleComponents.push(scene_triple);
+    Scene_Presentation_TripleComponents.push(face_triple);
+    Scene_Presentation_TripleComponents.push(item_triple);
+    Scene_Presentation_TripleComponents.push(description_triple);
+    Scene_Presentation_TripleComponents.push(text_continue_triple);
+    Scene_Presentation_TripleComponents.push(key_resp_5);
+    
+    Scene_Presentation_TripleComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+       });
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function Scene_Presentation_TripleRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'Scene_Presentation_Triple' ---
+    // get current time
+    t = Scene_Presentation_TripleClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    
+    // *scene_triple* updates
+    if (t >= 0.0 && scene_triple.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      scene_triple.tStart = t;  // (not accounting for frame time here)
+      scene_triple.frameNStart = frameN;  // exact frame index
+      
+      scene_triple.setAutoDraw(true);
+    }
+    
+    
+    // if scene_triple is active this frame...
+    if (scene_triple.status === PsychoJS.Status.STARTED) {
+    }
+    
+    
+    // *face_triple* updates
+    if (t >= 0.0 && face_triple.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      face_triple.tStart = t;  // (not accounting for frame time here)
+      face_triple.frameNStart = frameN;  // exact frame index
+      
+      face_triple.setAutoDraw(true);
+    }
+    
+    
+    // if face_triple is active this frame...
+    if (face_triple.status === PsychoJS.Status.STARTED) {
+    }
+    
+    
+    // *item_triple* updates
+    if (t >= 0.0 && item_triple.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      item_triple.tStart = t;  // (not accounting for frame time here)
+      item_triple.frameNStart = frameN;  // exact frame index
+      
+      item_triple.setAutoDraw(true);
+    }
+    
+    
+    // if item_triple is active this frame...
+    if (item_triple.status === PsychoJS.Status.STARTED) {
+    }
+    
+    
+    // *description_triple* updates
+    if (t >= 0.0 && description_triple.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      description_triple.tStart = t;  // (not accounting for frame time here)
+      description_triple.frameNStart = frameN;  // exact frame index
+      
+      description_triple.setAutoDraw(true);
+    }
+    
+    
+    // if description_triple is active this frame...
+    if (description_triple.status === PsychoJS.Status.STARTED) {
+    }
+    
+    
+    // *text_continue_triple* updates
+    if (t >= 0.0 && text_continue_triple.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      text_continue_triple.tStart = t;  // (not accounting for frame time here)
+      text_continue_triple.frameNStart = frameN;  // exact frame index
+      
+      text_continue_triple.setAutoDraw(true);
+    }
+    
+    
+    // if text_continue_triple is active this frame...
+    if (text_continue_triple.status === PsychoJS.Status.STARTED) {
+    }
+    
+    
+    // *key_resp_5* updates
+    if (t >= 0.0 && key_resp_5.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      key_resp_5.tStart = t;  // (not accounting for frame time here)
+      key_resp_5.frameNStart = frameN;  // exact frame index
+      
+      // keyboard checking is just starting
+      psychoJS.window.callOnFlip(function() { key_resp_5.clock.reset(); });  // t=0 on next screen flip
+      psychoJS.window.callOnFlip(function() { key_resp_5.start(); }); // start on screen flip
+      psychoJS.window.callOnFlip(function() { key_resp_5.clearEvents(); });
+    }
+    
+    // if key_resp_5 is active this frame...
+    if (key_resp_5.status === PsychoJS.Status.STARTED) {
+      let theseKeys = key_resp_5.getKeys({
+        keyList: typeof 'return' === 'string' ? ['return'] : 'return', 
+        waitRelease: false
+      });
+      _key_resp_5_allKeys = _key_resp_5_allKeys.concat(theseKeys);
+      if (_key_resp_5_allKeys.length > 0) {
+        key_resp_5.keys = _key_resp_5_allKeys[_key_resp_5_allKeys.length - 1].name;  // just the last key pressed
+        key_resp_5.rt = _key_resp_5_allKeys[_key_resp_5_allKeys.length - 1].rt;
+        key_resp_5.duration = _key_resp_5_allKeys[_key_resp_5_allKeys.length - 1].duration;
+        // a response ends the routine
+        continueRoutine = false;
+      }
+    }
+    
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    Scene_Presentation_TripleComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+      }
+    });
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+function Scene_Presentation_TripleRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'Scene_Presentation_Triple' ---
+    Scene_Presentation_TripleComponents.forEach( function(thisComponent) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    });
+    psychoJS.experiment.addData('Scene_Presentation_Triple.stopped', globalClock.getTime());
+    psychoJS.experiment.addData('scene_position_slot', scene_position_slot);
+    psychoJS.experiment.addData('face_position_slot', face_position_slot);
+    psychoJS.experiment.addData('item_position_slot', item_position_slot);
     // update the trial handler
     if (currentLoop instanceof MultiStairHandler) {
-      currentLoop.addResponse(key_resp_scene.corr, level);
+      currentLoop.addResponse(key_resp_5.corr, level);
     }
-    psychoJS.experiment.addData('key_resp_scene.keys', key_resp_scene.keys);
-    if (typeof key_resp_scene.keys !== 'undefined') {  // we had a response
-        psychoJS.experiment.addData('key_resp_scene.rt', key_resp_scene.rt);
-        psychoJS.experiment.addData('key_resp_scene.duration', key_resp_scene.duration);
+    psychoJS.experiment.addData('key_resp_5.keys', key_resp_5.keys);
+    if (typeof key_resp_5.keys !== 'undefined') {  // we had a response
+        psychoJS.experiment.addData('key_resp_5.rt', key_resp_5.rt);
+        psychoJS.experiment.addData('key_resp_5.duration', key_resp_5.duration);
         routineTimer.reset();
         }
     
-    key_resp_scene.stop();
-    psychoJS.experiment.addData('Scene_Presentation.duration', Scene_PresentationClock.getTime());
-    // the Routine "Scene_Presentation" was not non-slip safe, so reset the non-slip timer
+    key_resp_5.stop();
+    // the Routine "Scene_Presentation_Triple" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
     // Routines running outside a loop should always advance the datafile row
@@ -3189,24 +3310,9 @@ function load_scene_facesRoutineBegin(snapshot) {
     routineTimer.reset();
     load_scene_facesMaxDurationReached = false;
     // update component parameters for each repeat
-    var folders = [face_folder_1, face_folder_2, face_folder_3, face_folder_4,
-                    face_folder_5, face_folder_6, face_folder_7, face_folder_8];
-    
-    currentSceneFaceResources = [];
-    for (var f = 0; f < folders.length; f++) {
-        for (var i = 1; i <= 6; i++) {
-            var path = "resources/faces/" + gender + "/" + folders[f] + "/" + i + ".png";
-            currentSceneFaceResources.push({ name: path, path: path });
-        }
-    }
-    
     facesReady = false;
-    psychoJS.serverManager.prepareResources(currentSceneFaceResources)
-        .then(function () { facesReady = true; })
-        .catch(function (e) {
-            console.error("Face load failed:", e);
-            facesReady = true;
-        });
+    if (!facesPromise) { startFacePrefetch(); }   // safety net
+    facesPromise.then(function () { facesReady = true; });
     psychoJS.experiment.addData('load_scene_faces.started', globalClock.getTime());
     load_scene_facesMaxDuration = null
     // keep track of which components have finished
@@ -4076,97 +4182,57 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
     });
     psychoJS.experiment.addData('Save_Interim_Results.stopped', globalClock.getTime());
     // Run 'End Routine' code from save_interim_results
-    // Collect data from ALL loops, not just _trialsData
-    var allRows = [];
+    if (!quickMode) {
+        // Collect data from ALL loops, not just _trialsData
+        var allRows = [];
     
-    // Get the experiment's entries including loop data
-    var entries = psychoJS.experiment._trialsData;
+        // Get the experiment's entries including loop data
+        var entries = psychoJS.experiment._trialsData;
     
-    // Also try to get data from the experiment handler directly
-    if (psychoJS.experiment.extraInfo) {
-        var baseInfo = {};
-        var ei = psychoJS.experiment.extraInfo;
-        for (var key in ei) {
-            if (ei.hasOwnProperty(key)) {
-                baseInfo[key] = ei[key];
-            }
-        }
-    }
-    
-    // Collect all data entries including loop data
-    if (psychoJS.experiment._loops) {
-        for (var li = 0; li < psychoJS.experiment._loops.length; li++) {
-            var loop = psychoJS.experiment._loops[li];
-            if (loop._trialsData) {
-                for (var ri = 0; ri < loop._trialsData.length; ri++) {
-                    allRows.push(loop._trialsData[ri]);
+        // Also try to get data from the experiment handler directly
+        if (psychoJS.experiment.extraInfo) {
+            var baseInfo = {};
+            var ei = psychoJS.experiment.extraInfo;
+            for (var key in ei) {
+                if (ei.hasOwnProperty(key)) {
+                    baseInfo[key] = ei[key];
                 }
             }
         }
-    }
     
-    // Fall back to _trialsData if loop collection yielded nothing
-    if (allRows.length === 0 && entries && entries.length > 0) {
-        allRows = entries;
-    }
-    
-    // Merge with experiment-level entries
-    if (entries && entries.length > 0) {
-        for (var ei2 = 0; ei2 < entries.length; ei2++) {
-            var found = false;
-            for (var ai = 0; ai < allRows.length; ai++) {
-                if (allRows[ai] === entries[ei2]) { found = true; break; }
-            }
-            if (!found) allRows.push(entries[ei2]);
-        }
-    }
-    
-    // Build CSV from all collected rows
-    function convertToCSV(dataArray) {
-        if (!dataArray || dataArray.length === 0) { return ""; }
-        var allKeys = {};
-        for (var i = 0; i < dataArray.length; i++) {
-            var row = dataArray[i];
-            for (var k in row) {
-                if (row.hasOwnProperty(k)) allKeys[k] = true;
+        // Collect all data entries including loop data
+        if (psychoJS.experiment._loops) {
+            for (var li = 0; li < psychoJS.experiment._loops.length; li++) {
+                var loop = psychoJS.experiment._loops[li];
+                if (loop._trialsData) {
+                    for (var ri = 0; ri < loop._trialsData.length; ri++) {
+                        allRows.push(loop._trialsData[ri]);
+                    }
+                }
             }
         }
-        var headers = Object.keys(allKeys);
-        var rows = [headers.map(function(h) {
-            return '"' + String(h).replace(/"/g, '""') + '"';
-        }).join(',')];
-        for (var i = 0; i < dataArray.length; i++) {
-            var row = dataArray[i];
-            var values = headers.map(function(h) {
-                var val = (row[h] !== undefined && row[h] !== null) ? String(row[h]) : '';
-                return '"' + val.replace(/"/g, '""') + '"';
-            });
-            rows.push(values.join(','));
+    
+        // Fall back to _trialsData if loop collection yielded nothing
+        if (allRows.length === 0 && entries && entries.length > 0) {
+            allRows = entries;
         }
-        return rows.join('\n');
+    
+        // Merge with experiment-level entries
+        if (entries && entries.length > 0) {
+            for (var ei2 = 0; ei2 < entries.length; ei2++) {
+                var found = false;
+                for (var ai = 0; ai < allRows.length; ai++) {
+                    if (allRows[ai] === entries[ei2]) { found = true; break; }
+                }
+                if (!found) allRows.push(entries[ei2]);
+            }
+        }
+    
+        var participantID = participant_code || "UNKNOWN";
+        var sceneNum = (Scene_Loop.thisN !== undefined ? Scene_Loop.thisN : 0) + 1;
+        var filename = "participant_" + participantID + "_" + sessionTag + "_scene_" + sceneNum + ".csv";
+        saveToDataPipe(filename, convertToCSV(allRows));   // no await: don't block the next scene
     }
-    
-    // names
-    var participantID = participant_code || "UNKNOWN";
-    var sceneNum = (Scene_Loop.thisN !== undefined ? Scene_Loop.thisN : 0) + 1;
-    var filename = "participant_" + participantID + "_" + expName.replace(/ /g, "_") + "_scene_" + sceneNum + ".csv";
-    var csvData = convertToCSV(allRows);
-    
-    fetch("https://pipe.jspsych.org/api/data/", {
-        method: "POST",
-        headers: {"Content-Type": "application/json", "Accept": "*/*"},
-        body: JSON.stringify({
-            experimentID: "H2YyJU9MbEIU",
-            filename: filename,
-            data: csvData
-        })
-    }).then(function(r) { return r.json(); })
-      .then(function(result) {
-          console.log("DataPipe OK (scene " + sceneNum + "):", JSON.stringify(result));
-      })
-      .catch(function(e) {
-          console.error("DataPipe failed (scene " + sceneNum + "):", e);
-      });
     // the Routine "Save_Interim_Results" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -5144,9 +5210,6 @@ function IAT_feedbackRoutineEnd(snapshot) {
 
 
 var End_DemographicsMaxDurationReached;
-var demo_ethnicity;
-var demo_country_code;
-var demo_country_name;
 var End_DemographicsMaxDuration;
 var End_DemographicsComponents;
 function End_DemographicsRoutineBegin(snapshot) {
@@ -5163,112 +5226,117 @@ function End_DemographicsRoutineBegin(snapshot) {
     routineTimer.reset();
     End_DemographicsMaxDurationReached = false;
     // update component parameters for each repeat
-    // Hide the PsychoJS canvas temporarily
-    psychoJS.window._renderer.view.style.display = 'none';
+    if (quickMode) {
+        continueRoutine = false;
+        demo_done = true;
+    } else {
+        // Hide the PsychoJS canvas temporarily
+        psychoJS.window._renderer.view.style.display = 'none';
     
-    // Create overlay form
-    var overlay = document.createElement('div');
-    overlay.id = 'demo-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
+        // Create overlay form
+        var overlay = document.createElement('div');
+        overlay.id = 'demo-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
     
-    // global vars
-    demo_ethnicity = '';
-    demo_country_code = '';
-    demo_country_name = '';
-    demo_done = false;
+        // global vars
+        demo_ethnicity = '';
+        demo_country_code = '';
+        demo_country_name = '';
+        demo_done = false;
     
-    overlay.innerHTML = '\
-    <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
-      <h2 style="margin-top:0;">Demographics</h2>\
-    \
-      <div style="margin-bottom:20px;">\
-        <label style="display:block;margin-bottom:8px;">Ethnic background</label>\
-        <select id="demo-race" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-          <option value="white">White / Caucasian</option>\
-          <option value="middle_eastern">Middle Eastern / Arab / North African</option>\
-          <option value="black">Black / African descent</option>\
-          <option value="asian">Asian</option>\
-          <option value="hispanic">Hispanic / Latino</option>\
-          <option value="multiracial">Multiracial</option>\
-          <option value="prefer_not">Prefer not to say</option>\
-        </select>\
-      </div>\
-    \
-      <div style="margin-bottom:30px;">\
-        <label style="display:block;margin-bottom:8px;">In which country do you currently reside?</label>\
-        <select id="demo-country" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-          <option value="">-- Select --</option>\
-        </select>\
-      </div>\
-    \
-      <button id="demo-submit" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
-      <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer all questions.</p>\
-    </div>';
+        overlay.innerHTML = '\
+        <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
+          <h2 style="margin-top:0;">Demographics</h2>\
+        \
+          <div style="margin-bottom:20px;">\
+            <label style="display:block;margin-bottom:8px;">Ethnic background</label>\
+            <select id="demo-race" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+              <option value="">-- Select --</option>\
+              <option value="white">White / Caucasian</option>\
+              <option value="middle_eastern">Middle Eastern / Arab / North African</option>\
+              <option value="black">Black / African descent</option>\
+              <option value="asian">Asian</option>\
+              <option value="hispanic">Hispanic / Latino</option>\
+              <option value="multiracial">Multiracial</option>\
+              <option value="prefer_not">Prefer not to say</option>\
+            </select>\
+          </div>\
+        \
+          <div style="margin-bottom:30px;">\
+            <label style="display:block;margin-bottom:8px;">In which country do you currently reside?</label>\
+            <select id="demo-country" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
+              <option value="">-- Select --</option>\
+            </select>\
+          </div>\
+        \
+          <button id="demo-submit" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
+          <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer all questions.</p>\
+        </div>';
     
-    document.body.appendChild(overlay);
+        document.body.appendChild(overlay);
     
-    // --- build country list (ISO 3166-1 alpha-2 codes) ---
-    var countryCodes = ('AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ ' +
-        'CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR ' +
-        'GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP ' +
-        'KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ ' +
-        'NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW ' +
-        'SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ ' +
-        'UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW').split(' ');
+        // --- build country list (ISO 3166-1 alpha-2 codes) ---
+        var countryCodes = ('AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ ' +
+            'CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR ' +
+            'GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP ' +
+            'KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ ' +
+            'NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW ' +
+            'SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ ' +
+            'UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW').split(' ');
     
-    // Language of the country names: 'en' -> "Germany", 'de' -> "Deutschland"
-    var countryLocale = 'en';
+        // Language of the country names: 'en' -> "Germany", 'de' -> "Deutschland"
+        var countryLocale = 'en';
     
-    var displayNames = null;
-    try {
-        displayNames = new Intl.DisplayNames([countryLocale], {type: 'region'});
-    } catch (e) {
-        displayNames = null;
-    }
-    
-    var countries = [];
-    for (var c = 0; c < countryCodes.length; c++) {
-        var code = countryCodes[c];
-        var name = code;
+        var displayNames = null;
         try {
-            if (displayNames) name = displayNames.of(code) || code;
-        } catch (e) {}
-        countries.push({code: code, name: name});
-    }
-    
-    countries.sort(function(a, b) {
-        return a.name.localeCompare(b.name, countryLocale);
-    });
-    
-    var countrySelect = document.getElementById('demo-country');
-    for (var k = 0; k < countries.length; k++) {
-        var opt = document.createElement('option');
-        opt.value = countries[k].code;
-        opt.textContent = countries[k].name;
-        countrySelect.appendChild(opt);
-    }
-    
-    // --- submit ---
-    document.getElementById('demo-submit').addEventListener('click', function() {
-        var race = document.getElementById('demo-race').value;
-        var countrySel = document.getElementById('demo-country');
-        var countryCode = countrySel.value;
-    
-        if (!race || !countryCode) {
-            document.getElementById('demo-error').style.display = 'block';
-            return;
+            displayNames = new Intl.DisplayNames([countryLocale], {type: 'region'});
+        } catch (e) {
+            displayNames = null;
         }
     
-        demo_ethnicity = race;
-        demo_country_code = countryCode;
-        demo_country_name = countrySel.options[countrySel.selectedIndex].text;
+        var countries = [];
+        for (var c = 0; c < countryCodes.length; c++) {
+            var code = countryCodes[c];
+            var name = code;
+            try {
+                if (displayNames) name = displayNames.of(code) || code;
+            } catch (e) {}
+            countries.push({code: code, name: name});
+        }
     
-        // clean up
-        document.body.removeChild(overlay);
-        psychoJS.window._renderer.view.style.display = 'block';
-        demo_done = true;
-    });
+        countries.sort(function(a, b) {
+            return a.name.localeCompare(b.name, countryLocale);
+        });
+    
+        var countrySelect = document.getElementById('demo-country');
+        for (var k = 0; k < countries.length; k++) {
+            var opt = document.createElement('option');
+            opt.value = countries[k].code;
+            opt.textContent = countries[k].name;
+            countrySelect.appendChild(opt);
+        }
+    
+        // --- submit ---
+        document.getElementById('demo-submit').addEventListener('click', function() {
+            var race = document.getElementById('demo-race').value;
+            var countrySel = document.getElementById('demo-country');
+            var countryCode = countrySel.value;
+    
+            if (!race || !countryCode) {
+                document.getElementById('demo-error').style.display = 'block';
+                return;
+            }
+    
+            demo_ethnicity = race;
+            demo_country_code = countryCode;
+            demo_country_name = countrySel.options[countrySel.selectedIndex].text;
+    
+            // clean up
+            document.body.removeChild(overlay);
+            psychoJS.window._renderer.view.style.display = 'block';
+            demo_done = true;
+        });
+    }
     psychoJS.experiment.addData('End_Demographics.started', globalClock.getTime());
     End_DemographicsMaxDuration = null
     // keep track of which components have finished
@@ -5291,9 +5359,6 @@ function End_DemographicsRoutineEachFrame() {
     t = End_DemographicsClock.getTime();
     frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
     // update/draw components on each frame
-    if (demo_done) {
-        continueRoutine = false;
-    }
     
     // *text_placeholder4* updates
     if (t >= 0.0 && text_placeholder4.status === PsychoJS.Status.NOT_STARTED) {
@@ -5309,6 +5374,9 @@ function End_DemographicsRoutineEachFrame() {
     if (text_placeholder4.status === PsychoJS.Status.STARTED) {
     }
     
+    if (demo_done) {
+        continueRoutine = false;
+    }
     // check for quit (typically the Esc key)
     if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
       return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
@@ -5346,14 +5414,16 @@ function End_DemographicsRoutineEnd(snapshot) {
       }
     });
     psychoJS.experiment.addData('End_Demographics.stopped', globalClock.getTime());
-    // ensure canvas is visible again in case something went wrong
-    psychoJS.window._renderer.view.style.display = 'block';
-    // save questionnaire data
-    psychoJS.experiment.addData('ethnic_background', demo_ethnicity);
-    psychoJS.experiment.addData('country_code', demo_country_code);
-    psychoJS.experiment.addData('country_name', demo_country_name);
-    // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
-    routineTimer.reset();
+    if (!quickMode) {
+        // ensure canvas is visible again in case something went wrong
+        psychoJS.window._renderer.view.style.display = 'block';
+        // save questionnaire data
+        psychoJS.experiment.addData('ethnic_background', demo_ethnicity);
+        psychoJS.experiment.addData('country_code', demo_country_code);
+        psychoJS.experiment.addData('country_name', demo_country_name);
+        // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
+        routineTimer.reset();
+    }
     // the Routine "End_Demographics" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -5384,6 +5454,12 @@ function ExitRoutineBegin(snapshot) {
     routineTimer.reset();
     ExitMaxDurationReached = false;
     // update component parameters for each repeat
+    psychoJS._saveResults = 0;
+    
+    await saveToDataPipe(
+        "participant_" + (participant_code || "UNKNOWN") + "_" + sessionTag + "_final.csv",
+        convertToCSV(psychoJS.experiment._trialsData)
+    );
     key_resp_2.keys = undefined;
     key_resp_2.rt = undefined;
     _key_resp_2_allKeys = [];
@@ -5491,47 +5567,6 @@ function ExitRoutineEnd(snapshot) {
       }
     });
     psychoJS.experiment.addData('Exit.stopped', globalClock.getTime());
-    psychoJS._saveResults = 0;
-    
-    function buildCSV(trialsData) {
-            if (!trialsData || trialsData.length === 0) return '';
-            var headers = Object.keys(trialsData[0]);
-            var rows = [headers.map(function(h) {
-                return '"' + String(h).replace(/"/g, '""') + '"';
-            }).join(',')];
-            for (var i = 0; i < trialsData.length; i++) {
-                var row = trialsData[i];
-                var values = headers.map(function(h) {
-                    var val = (row[h] !== undefined && row[h] !== null) ? String(row[h]) : '';
-                    return '"' + val.replace(/"/g, '""') + '"';
-                });
-                rows.push(values.join(','));
-            }
-            return rows.join('\n');
-        }
-    
-        let csv = buildCSV(psychoJS.experiment._trialsData);
-    
-    // filename must be unique
-    let filename =
-        "participant_" +
-        (participant_code || "UNKNOWN") +
-        "_" +
-        Date.now() +
-        ".csv";
-        
-    fetch("https://pipe.jspsych.org/api/data/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Accept: "*/*"
-        },
-        body: JSON.stringify({
-            experimentID: "H2YyJU9MbEIU",
-            filename: filename,
-            data: csv
-        })
-    });
     // update the trial handler
     if (currentLoop instanceof MultiStairHandler) {
       currentLoop.addResponse(key_resp_2.corr, level);
