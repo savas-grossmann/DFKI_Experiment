@@ -148,11 +148,6 @@ flowScheduler.add(Participant_CodeRoutineEnd());
 flowScheduler.add(DemographicsRoutineBegin());
 flowScheduler.add(DemographicsRoutineEachFrame());
 flowScheduler.add(DemographicsRoutineEnd());
-const test_trialsLoopScheduler = new Scheduler(psychoJS);
-flowScheduler.add(test_trialsLoopBegin(test_trialsLoopScheduler));
-flowScheduler.add(test_trialsLoopScheduler);
-flowScheduler.add(test_trialsLoopEnd);
-
 flowScheduler.add(InstructionsRoutineBegin());
 flowScheduler.add(InstructionsRoutineEachFrame());
 flowScheduler.add(InstructionsRoutineEnd());
@@ -204,19 +199,6 @@ psychoJS.start({
   expInfo: expInfo,
   resources: [
     // resources:
-    {'name': 'resources/test/test.xlsx', 'path': 'resources/test/test.xlsx'},
-    {'name': 'resources/test/anordnung_1/scene.jpg', 'path': 'resources/test/anordnung_1/scene.jpg'},
-    {'name': 'resources/test/anordnung_1/face.png', 'path': 'resources/test/anordnung_1/face.png'},
-    {'name': 'resources/test/anordnung_1/item.jpg', 'path': 'resources/test/anordnung_1/item.jpg'},
-    {'name': 'resources/test/anordnung_2/scene.jpg', 'path': 'resources/test/anordnung_2/scene.jpg'},
-    {'name': 'resources/test/anordnung_2/face.png', 'path': 'resources/test/anordnung_2/face.png'},
-    {'name': 'resources/test/anordnung_2/item.jpg', 'path': 'resources/test/anordnung_2/item.jpg'},
-    {'name': 'resources/test/anordnung_3/scene.jpg', 'path': 'resources/test/anordnung_3/scene.jpg'},
-    {'name': 'resources/test/anordnung_3/face.png', 'path': 'resources/test/anordnung_3/face.png'},
-    {'name': 'resources/test/anordnung_3/item.jpg', 'path': 'resources/test/anordnung_3/item.jpg'},
-    {'name': 'resources/test/anordnung_4/scene.jpg', 'path': 'resources/test/anordnung_4/scene.jpg'},
-    {'name': 'resources/test/anordnung_4/face.png', 'path': 'resources/test/anordnung_4/face.png'},
-    {'name': 'resources/test/anordnung_4/item.jpg', 'path': 'resources/test/anordnung_4/item.jpg'},
     {'name': 'resources/iat/instructs.xlsx', 'path': 'resources/iat/instructs.xlsx'},
     {'name': 'resources/iat/blocks_order.xlsx', 'path': 'resources/iat/blocks_order.xlsx'},
     {'name': 'resources/iat/pos_neg_train.xlsx', 'path': 'resources/iat/pos_neg_train.xlsx'},
@@ -230,7 +212,6 @@ psychoJS.start({
     {'name': 'resources/conditions/condition_1.xlsx', 'path': 'resources/conditions/condition_1.xlsx'},
     {'name': 'resources/conditions/condition_2.xlsx', 'path': 'resources/conditions/condition_2.xlsx'},
     {'name': 'resources/conditions/condition_3.xlsx', 'path': 'resources/conditions/condition_3.xlsx'},
-    {'name': 'resources/test/test.xlsx', 'path': 'resources/test/test.xlsx'},
     {'name': 'resources/iat/stimuli/blank.png', 'path': 'resources/iat/stimuli/blank.png'},
     {'name': 'resources/iat/blocks_order.xlsx', 'path': 'resources/iat/blocks_order.xlsx'},
     {'name': 'resources/iat/cong_test.xlsx', 'path': 'resources/iat/cong_test.xlsx'},
@@ -2030,63 +2011,300 @@ function DemographicsRoutineEnd(snapshot) {
 }
 
 
-var test_trials;
-function test_trialsLoopBegin(test_trialsLoopScheduler, snapshot) {
-  return async function() {
-    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
+var InstructionsMaxDurationReached;
+var _key_resp_allKeys;
+var InstructionsMaxDuration;
+var InstructionsComponents;
+function InstructionsRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
     
-    // set up handler to look after randomisation of conditions etc
-    test_trials = new TrialHandler({
-      psychoJS: psychoJS,
-      nReps: 4, method: TrialHandler.Method.SEQUENTIAL,
-      extraInfo: expInfo, originPath: undefined,
-      trialList: 'resources/test/test.xlsx',
-      seed: undefined, name: 'test_trials'
-    });
-    psychoJS.experiment.addLoop(test_trials); // add the loop to the experiment
-    currentLoop = test_trials;  // we're now the current loop
+    //--- Prepare to start Routine 'Instructions' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    InstructionsClock.reset();
+    routineTimer.reset();
+    InstructionsMaxDurationReached = false;
+    // update component parameters for each repeat
+    key_resp.keys = undefined;
+    key_resp.rt = undefined;
+    _key_resp_allKeys = [];
+    psychoJS.experiment.addData('Instructions.started', globalClock.getTime());
+    InstructionsMaxDuration = null
+    // keep track of which components have finished
+    InstructionsComponents = [];
+    InstructionsComponents.push(instruction_text);
+    InstructionsComponents.push(key_resp);
     
-    // Schedule all the trials in the trialList:
-    for (const thisTest_trial of test_trials) {
-      snapshot = test_trials.getSnapshot();
-      test_trialsLoopScheduler.add(importConditions(snapshot));
-      test_trialsLoopScheduler.add(test_trialsLoopEndIteration(test_trialsLoopScheduler, snapshot));
-    }
-    
+    for (const thisComponent of InstructionsComponents)
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
     return Scheduler.Event.NEXT;
   }
 }
 
 
-async function test_trialsLoopEnd() {
-  // terminate loop
-  psychoJS.experiment.removeLoop(test_trials);
-  // update the current loop from the ExperimentHandler
-  if (psychoJS.experiment._unfinishedLoops.length>0)
-    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
-  else
-    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
-  return Scheduler.Event.NEXT;
+function InstructionsRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'Instructions' ---
+    // get current time
+    t = InstructionsClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    
+    // *instruction_text* updates
+    if (t >= 0.0 && instruction_text.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      instruction_text.tStart = t;  // (not accounting for frame time here)
+      instruction_text.frameNStart = frameN;  // exact frame index
+      
+      instruction_text.setAutoDraw(true);
+    }
+    
+    
+    // if instruction_text is active this frame...
+    if (instruction_text.status === PsychoJS.Status.STARTED) {
+    }
+    
+    
+    // *key_resp* updates
+    if (t >= 0.0 && key_resp.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      key_resp.tStart = t;  // (not accounting for frame time here)
+      key_resp.frameNStart = frameN;  // exact frame index
+      
+      // keyboard checking is just starting
+      psychoJS.window.callOnFlip(function() { key_resp.clock.reset(); });  // t=0 on next screen flip
+      psychoJS.window.callOnFlip(function() { key_resp.start(); }); // start on screen flip
+      psychoJS.window.callOnFlip(function() { key_resp.clearEvents(); });
+    }
+    
+    // if key_resp is active this frame...
+    if (key_resp.status === PsychoJS.Status.STARTED) {
+      let theseKeys = key_resp.getKeys({
+        keyList: typeof 'return' === 'string' ? ['return'] : 'return', 
+        waitRelease: false
+      });
+      _key_resp_allKeys = _key_resp_allKeys.concat(theseKeys);
+      if (_key_resp_allKeys.length > 0) {
+        key_resp.keys = _key_resp_allKeys[_key_resp_allKeys.length - 1].name;  // just the last key pressed
+        key_resp.rt = _key_resp_allKeys[_key_resp_allKeys.length - 1].rt;
+        key_resp.duration = _key_resp_allKeys[_key_resp_allKeys.length - 1].duration;
+        // a response ends the routine
+        continueRoutine = false;
+      }
+    }
+    
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    for (const thisComponent of InstructionsComponents)
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+        break;
+      }
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
 }
 
 
-function test_trialsLoopEndIteration(scheduler, snapshot) {
-  // ------Prepare for next entry------
+function InstructionsRoutineEnd(snapshot) {
   return async function () {
-    if (typeof snapshot !== 'undefined') {
-      // ------Check if user ended loop early------
-      if (snapshot.finished) {
-        // Check for and save orphaned data
-        if (psychoJS.experiment.isEntryEmpty()) {
-          psychoJS.experiment.nextEntry(snapshot);
-        }
-        scheduler.stop();
-      } else {
-        psychoJS.experiment.nextEntry(snapshot);
+    //--- Ending Routine 'Instructions' ---
+    for (const thisComponent of InstructionsComponents) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
       }
+    }
+    psychoJS.experiment.addData('Instructions.stopped', globalClock.getTime());
+    // update the trial handler
+    if (currentLoop instanceof MultiStairHandler) {
+      currentLoop.addResponse(key_resp.corr, level);
+    }
+    psychoJS.experiment.addData('key_resp.keys', key_resp.keys);
+    if (typeof key_resp.keys !== 'undefined') {  // we had a response
+        psychoJS.experiment.addData('key_resp.rt', key_resp.rt);
+        psychoJS.experiment.addData('key_resp.duration', key_resp.duration);
+        routineTimer.reset();
+        }
+    
+    key_resp.stop();
+    // the Routine "Instructions" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
     return Scheduler.Event.NEXT;
+  }
+}
+
+
+var Condition_LoadingMaxDurationReached;
+var conditionReady;
+var conditionFailed;
+var condition;
+var conditionsFile;
+var Condition_LoadingMaxDuration;
+var Condition_LoadingComponents;
+function Condition_LoadingRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'Condition_Loading' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    Condition_LoadingClock.reset();
+    routineTimer.reset();
+    Condition_LoadingMaxDurationReached = false;
+    // update component parameters for each repeat
+    conditionReady = false;
+    conditionFailed = false;
+    condition = null;
+    conditionsFile = null;
+    
+    fetch("https://pipe.jspsych.org/api/condition/", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "Accept": "*/*"},
+        body: JSON.stringify({experimentID: "eonAagK4IATa"})
+    })
+    .then(function(r) {
+        return r.json().then(function(d) { return {ok: r.ok, data: d}; });
+    })
+    .then(function(res) {
+        var c = res.data.condition;
+        if (!res.ok || res.data.error || !Number.isInteger(c) || c < 0 || c > 3) {
+            throw new Error("Bad condition response: " + JSON.stringify(res.data));
+        }
+        condition = c;
+        conditionsFile = "resources/conditions/condition_" + condition + ".xlsx";
+        conditionReady = true;
+    })
+    .catch(function(error) {
+        console.error("Condition request failed:", error);
+        conditionFailed = true;   // NO fallback condition
+    });
+    psychoJS.experiment.addData('Condition_Loading.started', globalClock.getTime());
+    Condition_LoadingMaxDuration = null
+    // keep track of which components have finished
+    Condition_LoadingComponents = [];
+    Condition_LoadingComponents.push(wait_text);
+    
+    for (const thisComponent of Condition_LoadingComponents)
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function Condition_LoadingRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'Condition_Loading' ---
+    // get current time
+    t = Condition_LoadingClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    
+    // *wait_text* updates
+    if (t >= 0.0 && wait_text.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      wait_text.tStart = t;  // (not accounting for frame time here)
+      wait_text.frameNStart = frameN;  // exact frame index
+      
+      wait_text.setAutoDraw(true);
+    }
+    
+    
+    // if wait_text is active this frame...
+    if (wait_text.status === PsychoJS.Status.STARTED) {
+    }
+    
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+        return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    if (conditionFailed) {
+        wait_text.setText('The experiment could not be started. Please close this window and contact the study leads.');
+        if (!window._condQuitScheduled) {
+            window._condQuitScheduled = true;
+            setTimeout(function() { psychoJS.quit({message: 'Condition assignment failed.', isCompleted: false}); }, 8000);
+        }
+        return Scheduler.Event.FLIP_REPEAT;
+    }
+    if (conditionReady) {
+        return Scheduler.Event.NEXT;
+    }
+    return Scheduler.Event.FLIP_REPEAT;
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    for (const thisComponent of Condition_LoadingComponents)
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+        break;
+      }
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
     }
   };
+}
+
+
+function Condition_LoadingRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'Condition_Loading' ---
+    for (const thisComponent of Condition_LoadingComponents) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    }
+    psychoJS.experiment.addData('Condition_Loading.stopped', globalClock.getTime());
+    console.log("Resource cache entry:", psychoJS.serverManager._resources.get(conditionsFile));
+    // the Routine "Condition_Loading" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
 }
 
 
@@ -2421,303 +2639,6 @@ function IAT_blocksLoopEndIteration(scheduler, snapshot) {
     return Scheduler.Event.NEXT;
     }
   };
-}
-
-
-var InstructionsMaxDurationReached;
-var _key_resp_allKeys;
-var InstructionsMaxDuration;
-var InstructionsComponents;
-function InstructionsRoutineBegin(snapshot) {
-  return async function () {
-    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
-    
-    //--- Prepare to start Routine 'Instructions' ---
-    t = 0;
-    frameN = -1;
-    continueRoutine = true; // until we're told otherwise
-    // keep track of whether this Routine was forcibly ended
-    routineForceEnded = false;
-    InstructionsClock.reset();
-    routineTimer.reset();
-    InstructionsMaxDurationReached = false;
-    // update component parameters for each repeat
-    key_resp.keys = undefined;
-    key_resp.rt = undefined;
-    _key_resp_allKeys = [];
-    psychoJS.experiment.addData('Instructions.started', globalClock.getTime());
-    InstructionsMaxDuration = null
-    // keep track of which components have finished
-    InstructionsComponents = [];
-    InstructionsComponents.push(instruction_text);
-    InstructionsComponents.push(key_resp);
-    
-    for (const thisComponent of InstructionsComponents)
-      if ('status' in thisComponent)
-        thisComponent.status = PsychoJS.Status.NOT_STARTED;
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-function InstructionsRoutineEachFrame() {
-  return async function () {
-    //--- Loop for each frame of Routine 'Instructions' ---
-    // get current time
-    t = InstructionsClock.getTime();
-    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
-    // update/draw components on each frame
-    
-    // *instruction_text* updates
-    if (t >= 0.0 && instruction_text.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      instruction_text.tStart = t;  // (not accounting for frame time here)
-      instruction_text.frameNStart = frameN;  // exact frame index
-      
-      instruction_text.setAutoDraw(true);
-    }
-    
-    
-    // if instruction_text is active this frame...
-    if (instruction_text.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *key_resp* updates
-    if (t >= 0.0 && key_resp.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      key_resp.tStart = t;  // (not accounting for frame time here)
-      key_resp.frameNStart = frameN;  // exact frame index
-      
-      // keyboard checking is just starting
-      psychoJS.window.callOnFlip(function() { key_resp.clock.reset(); });  // t=0 on next screen flip
-      psychoJS.window.callOnFlip(function() { key_resp.start(); }); // start on screen flip
-      psychoJS.window.callOnFlip(function() { key_resp.clearEvents(); });
-    }
-    
-    // if key_resp is active this frame...
-    if (key_resp.status === PsychoJS.Status.STARTED) {
-      let theseKeys = key_resp.getKeys({
-        keyList: typeof 'return' === 'string' ? ['return'] : 'return', 
-        waitRelease: false
-      });
-      _key_resp_allKeys = _key_resp_allKeys.concat(theseKeys);
-      if (_key_resp_allKeys.length > 0) {
-        key_resp.keys = _key_resp_allKeys[_key_resp_allKeys.length - 1].name;  // just the last key pressed
-        key_resp.rt = _key_resp_allKeys[_key_resp_allKeys.length - 1].rt;
-        key_resp.duration = _key_resp_allKeys[_key_resp_allKeys.length - 1].duration;
-        // a response ends the routine
-        continueRoutine = false;
-      }
-    }
-    
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
-    // check if the Routine should terminate
-    if (!continueRoutine) {  // a component has requested a forced-end of Routine
-      routineForceEnded = true;
-      return Scheduler.Event.NEXT;
-    }
-    
-    continueRoutine = false;  // reverts to True if at least one component still running
-    for (const thisComponent of InstructionsComponents)
-      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
-        continueRoutine = true;
-        break;
-      }
-    
-    // refresh the screen if continuing
-    if (continueRoutine) {
-      return Scheduler.Event.FLIP_REPEAT;
-    } else {
-      return Scheduler.Event.NEXT;
-    }
-  };
-}
-
-
-function InstructionsRoutineEnd(snapshot) {
-  return async function () {
-    //--- Ending Routine 'Instructions' ---
-    for (const thisComponent of InstructionsComponents) {
-      if (typeof thisComponent.setAutoDraw === 'function') {
-        thisComponent.setAutoDraw(false);
-      }
-    }
-    psychoJS.experiment.addData('Instructions.stopped', globalClock.getTime());
-    // update the trial handler
-    if (currentLoop instanceof MultiStairHandler) {
-      currentLoop.addResponse(key_resp.corr, level);
-    }
-    psychoJS.experiment.addData('key_resp.keys', key_resp.keys);
-    if (typeof key_resp.keys !== 'undefined') {  // we had a response
-        psychoJS.experiment.addData('key_resp.rt', key_resp.rt);
-        psychoJS.experiment.addData('key_resp.duration', key_resp.duration);
-        routineTimer.reset();
-        }
-    
-    key_resp.stop();
-    // the Routine "Instructions" was not non-slip safe, so reset the non-slip timer
-    routineTimer.reset();
-    
-    // Routines running outside a loop should always advance the datafile row
-    if (currentLoop === psychoJS.experiment) {
-      psychoJS.experiment.nextEntry(snapshot);
-    }
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-var Condition_LoadingMaxDurationReached;
-var conditionReady;
-var conditionFailed;
-var condition;
-var conditionsFile;
-var Condition_LoadingMaxDuration;
-var Condition_LoadingComponents;
-function Condition_LoadingRoutineBegin(snapshot) {
-  return async function () {
-    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
-    
-    //--- Prepare to start Routine 'Condition_Loading' ---
-    t = 0;
-    frameN = -1;
-    continueRoutine = true; // until we're told otherwise
-    // keep track of whether this Routine was forcibly ended
-    routineForceEnded = false;
-    Condition_LoadingClock.reset();
-    routineTimer.reset();
-    Condition_LoadingMaxDurationReached = false;
-    // update component parameters for each repeat
-    conditionReady = false;
-    conditionFailed = false;
-    condition = null;
-    conditionsFile = null;
-    
-    fetch("https://pipe.jspsych.org/api/condition/", {
-        method: "POST",
-        headers: {"Content-Type": "application/json", "Accept": "*/*"},
-        body: JSON.stringify({experimentID: "eonAagK4IATa"})
-    })
-    .then(function(r) {
-        return r.json().then(function(d) { return {ok: r.ok, data: d}; });
-    })
-    .then(function(res) {
-        var c = res.data.condition;
-        if (!res.ok || res.data.error || !Number.isInteger(c) || c < 0 || c > 3) {
-            throw new Error("Bad condition response: " + JSON.stringify(res.data));
-        }
-        condition = c;
-        conditionsFile = "resources/conditions/condition_" + condition + ".xlsx";
-        conditionReady = true;
-    })
-    .catch(function(error) {
-        console.error("Condition request failed:", error);
-        conditionFailed = true;   // NO fallback condition
-    });
-    psychoJS.experiment.addData('Condition_Loading.started', globalClock.getTime());
-    Condition_LoadingMaxDuration = null
-    // keep track of which components have finished
-    Condition_LoadingComponents = [];
-    Condition_LoadingComponents.push(wait_text);
-    
-    for (const thisComponent of Condition_LoadingComponents)
-      if ('status' in thisComponent)
-        thisComponent.status = PsychoJS.Status.NOT_STARTED;
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-function Condition_LoadingRoutineEachFrame() {
-  return async function () {
-    //--- Loop for each frame of Routine 'Condition_Loading' ---
-    // get current time
-    t = Condition_LoadingClock.getTime();
-    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
-    // update/draw components on each frame
-    
-    // *wait_text* updates
-    if (t >= 0.0 && wait_text.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      wait_text.tStart = t;  // (not accounting for frame time here)
-      wait_text.frameNStart = frameN;  // exact frame index
-      
-      wait_text.setAutoDraw(true);
-    }
-    
-    
-    // if wait_text is active this frame...
-    if (wait_text.status === PsychoJS.Status.STARTED) {
-    }
-    
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-        return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
-    if (conditionFailed) {
-        wait_text.setText('The experiment could not be started. Please close this window and contact the study leads.');
-        if (!window._condQuitScheduled) {
-            window._condQuitScheduled = true;
-            setTimeout(function() { psychoJS.quit({message: 'Condition assignment failed.', isCompleted: false}); }, 8000);
-        }
-        return Scheduler.Event.FLIP_REPEAT;
-    }
-    if (conditionReady) {
-        return Scheduler.Event.NEXT;
-    }
-    return Scheduler.Event.FLIP_REPEAT;
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
-    // check if the Routine should terminate
-    if (!continueRoutine) {  // a component has requested a forced-end of Routine
-      routineForceEnded = true;
-      return Scheduler.Event.NEXT;
-    }
-    
-    continueRoutine = false;  // reverts to True if at least one component still running
-    for (const thisComponent of Condition_LoadingComponents)
-      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
-        continueRoutine = true;
-        break;
-      }
-    
-    // refresh the screen if continuing
-    if (continueRoutine) {
-      return Scheduler.Event.FLIP_REPEAT;
-    } else {
-      return Scheduler.Event.NEXT;
-    }
-  };
-}
-
-
-function Condition_LoadingRoutineEnd(snapshot) {
-  return async function () {
-    //--- Ending Routine 'Condition_Loading' ---
-    for (const thisComponent of Condition_LoadingComponents) {
-      if (typeof thisComponent.setAutoDraw === 'function') {
-        thisComponent.setAutoDraw(false);
-      }
-    }
-    psychoJS.experiment.addData('Condition_Loading.stopped', globalClock.getTime());
-    console.log("Resource cache entry:", psychoJS.serverManager._resources.get(conditionsFile));
-    // the Routine "Condition_Loading" was not non-slip safe, so reset the non-slip timer
-    routineTimer.reset();
-    
-    // Routines running outside a loop should always advance the datafile row
-    if (currentLoop === psychoJS.experiment) {
-      psychoJS.experiment.nextEntry(snapshot);
-    }
-    return Scheduler.Event.NEXT;
-  }
 }
 
 
