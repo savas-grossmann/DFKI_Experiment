@@ -534,7 +534,7 @@ async function experimentInit() {
   text_placeholder6 = new visual.TextStim({
     win: psychoJS.window,
     name: 'text_placeholder6',
-    text: '',
+    text: 'Loading Scene...',
     font: 'Arial',
     units: undefined, 
     pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
