@@ -304,7 +304,6 @@ var Scene_Presentation_TripleClock;
 var scene_triple;
 var face_triple;
 var item_triple;
-var description_triple;
 var text_continue_triple;
 var key_resp_5;
 var Scene_DescriptionClock;
@@ -615,32 +614,6 @@ async function experimentInit() {
     flipHoriz : false, flipVert : false,
     texRes : 128.0, interpolate : true, depth : -3.0 
   });
-  description_triple = new visual.TextBox({
-    win: psychoJS.window,
-    name: 'description_triple',
-    text: '',
-    placeholder: 'Type here...',
-    font: 'Arial',
-    pos: [0, 0], 
-    draggable: false,
-    letterHeight: 0.05,
-    lineSpacing: 1.0,
-    size: [1, 0.5],  units: undefined, 
-    ori: 0.0,
-    color: 'white', colorSpace: 'rgb',
-    fillColor: undefined, borderColor: undefined,
-    languageStyle: 'LTR',
-    bold: false, italic: false,
-    opacity: undefined,
-    padding: 0.0,
-    alignment: 'center',
-    overflow: 'visible',
-    editable: false,
-    multiline: true,
-    anchor: 'center',
-    depth: -4.0 
-  });
-  
   text_continue_triple = new visual.TextStim({
     win: psychoJS.window,
     name: 'text_continue_triple',
@@ -650,7 +623,7 @@ async function experimentInit() {
     pos: [0, (- 0.8)], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
-    depth: -5.0 
+    depth: -4.0 
   });
   
   key_resp_5 = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
@@ -2848,7 +2821,6 @@ function Scene_Presentation_TripleRoutineBegin(snapshot) {
     scene_triple.setImage(scene_image);
     face_triple.setImage(face_image);
     item_triple.setImage(item_image);
-    description_triple.setText(context_text);
     key_resp_5.keys = undefined;
     key_resp_5.rt = undefined;
     _key_resp_5_allKeys = [];
@@ -2859,7 +2831,6 @@ function Scene_Presentation_TripleRoutineBegin(snapshot) {
     Scene_Presentation_TripleComponents.push(scene_triple);
     Scene_Presentation_TripleComponents.push(face_triple);
     Scene_Presentation_TripleComponents.push(item_triple);
-    Scene_Presentation_TripleComponents.push(description_triple);
     Scene_Presentation_TripleComponents.push(text_continue_triple);
     Scene_Presentation_TripleComponents.push(key_resp_5);
     
@@ -2922,21 +2893,6 @@ function Scene_Presentation_TripleRoutineEachFrame() {
     
     // if item_triple is active this frame...
     if (item_triple.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *description_triple* updates
-    if (t >= 0.0 && description_triple.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      description_triple.tStart = t;  // (not accounting for frame time here)
-      description_triple.frameNStart = frameN;  // exact frame index
-      
-      description_triple.setAutoDraw(true);
-    }
-    
-    
-    // if description_triple is active this frame...
-    if (description_triple.status === PsychoJS.Status.STARTED) {
     }
     
     
