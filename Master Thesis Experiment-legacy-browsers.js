@@ -2864,9 +2864,11 @@ function load_scene_picturesRoutineEnd(snapshot) {
 
 
 var Scene_Presentation_TripleMaxDurationReached;
+var slots;
 var scene_position_slot;
 var face_position_slot;
 var item_position_slot;
+var scene_layout;
 var _key_resp_5_allKeys;
 var Scene_Presentation_TripleMaxDuration;
 var Scene_Presentation_TripleComponents;
@@ -2884,36 +2886,171 @@ function Scene_Presentation_TripleRoutineBegin(snapshot) {
     routineTimer.reset();
     Scene_Presentation_TripleMaxDurationReached = false;
     // update component parameters for each repeat
-    // Jeder Slot hat eine feste Position UND eine feste Größe,
-    // damit das Layout immer gleich aussieht, egal welches Bild wo landet.
-    var sceneSlots = [
-        { pos: [0, 0.5],        size: [0.75, 0.75] },
-        { pos: [-0.35, -0.35],  size: [0.5, 0.5] },
-        { pos: [0.35, -0.35],   size: [0.5, 0.5] }
-    ];
     
-    // Kopie mischen (Fisher-Yates Shuffle)
-    var shuffledSlots = sceneSlots.slice();
+    // =============================================
+    // RESPONSIVE RANDOM IMAGE LAYOUT
+    // =============================================
+    
+    // Screen dimensions (PsychoPy units = height)
+    var screenWidth = psychoJS.window.size[0] / psychoJS.window.size[1];
+    var screenHeight = 1;
+    
+    // Layout parameters
+    var margin = 0.005;
+    var gap = 0.01;
+    
+    // Available screen area
+    var availableWidth = screenWidth - 2 * margin;
+    var availableHeight = screenHeight - 2 * margin;
+    
+    // Two rows
+    var rowHeight = (availableHeight - gap) / 2;
+    
+    // Two possible layouts:
+    // 1. One image on top, two images below
+    // 2. Two images on top, one image below
+    
+    var singleImageOnTop = Math.random() < 0.5;
+    
+    // Calculate positions and maximum bounding boxes
+    var slots;
+    
+    if (singleImageOnTop) {
+    
+        // One large image on top
+        slots = [
+            {
+                pos: [0, (rowHeight + gap) / 2],
+                maxSize: [availableWidth, rowHeight]
+            },
+            {
+                pos: [
+                    -(availableWidth + gap) / 4,
+                    -(rowHeight + gap) / 2
+                ],
+                maxSize: [
+                    (availableWidth - gap) / 2,
+                    rowHeight
+                ]
+            },
+            {
+                pos: [
+                    (availableWidth + gap) / 4,
+                    -(rowHeight + gap) / 2
+                ],
+                maxSize: [
+                    (availableWidth - gap) / 2,
+                    rowHeight
+                ]
+            }
+        ];
+    
+    } else {
+    
+        // Two images on top, one large image below
+        slots = [
+            {
+                pos: [
+                    -(availableWidth + gap) / 4,
+                    (rowHeight + gap) / 2
+                ],
+                maxSize: [
+                    (availableWidth - gap) / 2,
+                    rowHeight
+                ]
+            },
+            {
+                pos: [
+                    (availableWidth + gap) / 4,
+                    (rowHeight + gap) / 2
+                ],
+                maxSize: [
+                    (availableWidth - gap) / 2,
+                    rowHeight
+                ]
+            },
+            {
+                pos: [0, -(rowHeight + gap) / 2],
+                maxSize: [availableWidth, rowHeight]
+            }
+        ];
+    }
+    
+    // =============================================
+    // RANDOMIZE IMAGE ASSIGNMENT
+    // =============================================
+    
+    var shuffledSlots = slots.slice();
+    
     for (var i = shuffledSlots.length - 1; i > 0; i--) {
         var j = Math.floor(Math.random() * (i + 1));
+    
         var temp = shuffledSlots[i];
         shuffledSlots[i] = shuffledSlots[j];
         shuffledSlots[j] = temp;
     }
     
-    scene_triple.setPos(shuffledSlots[0].pos);
-    scene_triple.setSize(shuffledSlots[0].size);
+    // =============================================
+    // CALCULATE MAXIMUM IMAGE SIZE
+    // WHILE PRESERVING ASPECT RATIO
+    // =============================================
     
-    face_triple.setPos(shuffledSlots[1].pos);
-    face_triple.setSize(shuffledSlots[1].size);
+    function getAspectRatioSize(imagePath, maxSize) {
     
-    item_triple.setPos(shuffledSlots[2].pos);
-    item_triple.setSize(shuffledSlots[2].size);
+        var img = window.supabaseImages[imagePath];
     
-    // merken, welcher Slot (1 = oben groß, 2 = unten links, 3 = unten rechts) an wen ging
-    scene_position_slot = sceneSlots.indexOf(shuffledSlots[0]) + 1;
-    face_position_slot = sceneSlots.indexOf(shuffledSlots[1]) + 1;
-    item_position_slot = sceneSlots.indexOf(shuffledSlots[2]) + 1;
+        if (!img || !img.naturalWidth || !img.naturalHeight) {
+            throw new Error("Image dimensions unavailable: " + imagePath);
+        }
+    
+        var aspectRatio = img.naturalWidth / img.naturalHeight;
+    
+        var width = maxSize[0];
+        var height = width / aspectRatio;
+    
+        // Constrain by height if necessary
+        if (height > maxSize[1]) {
+            height = maxSize[1];
+            width = height * aspectRatio;
+        }
+    
+        return [width, height];
+    }
+    
+    // =============================================
+    // APPLY POSITIONS AND SIZES
+    // =============================================
+    
+    var images = [
+        { component: scene_triple, path: scene_image },
+        { component: face_triple, path: face_image },
+        { component: item_triple, path: item_image }
+    ];
+    
+    images.forEach(function(image, index) {
+    
+        var slot = shuffledSlots[index];
+    
+        var size = getAspectRatioSize(
+            image.path,
+            slot.maxSize
+        );
+    
+        image.component.setPos(slot.pos);
+        image.component.setSize(size);
+    
+    });
+    
+    // =============================================
+    // SAVE RANDOMIZATION FOR ANALYSIS
+    // =============================================
+    
+    scene_position_slot = slots.indexOf(shuffledSlots[0]) + 1;
+    face_position_slot = slots.indexOf(shuffledSlots[1]) + 1;
+    item_position_slot = slots.indexOf(shuffledSlots[2]) + 1;
+    
+    scene_layout = singleImageOnTop ? "single_top" : "single_bottom";
+    
     scene_triple.setImage(window.supabaseImages[scene_image]);
     face_triple.setImage(window.supabaseImages[face_image]);
     item_triple.setImage(window.supabaseImages[item_image]);
