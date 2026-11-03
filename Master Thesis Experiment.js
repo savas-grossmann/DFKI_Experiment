@@ -122,24 +122,34 @@ async function saveToDataPipe(filename, csv) {
     return false;
 }
 
-var facesPromise = null;
+window.startFacePrefetch = function() {
+    var folders = [
+        face_folder_1, face_folder_2, face_folder_3, face_folder_4,
+        face_folder_5, face_folder_6, face_folder_7, face_folder_8
+    ];
 
-
-var facesPromise;
-function startFacePrefetch() {
-    var folders = [face_folder_1, face_folder_2, face_folder_3, face_folder_4,
-                   face_folder_5, face_folder_6, face_folder_7, face_folder_8];
     var res = [];
+
     for (var f = 0; f < folders.length; f++) {
         for (var i = 1; i <= 6; i++) {
-            var p = "resources/faces/" + gender + "/" + folders[f] + "/" + i + ".png";
-            res.push({ name: p, path: p });
+
+            var p = "faces/" + gender + "/" +
+                    folders[f] + "/" + i + ".png";
+
+            res.push({
+                name: p,
+                path: window.getSupabaseUrl(p)
+            });
         }
     }
-    facesPromise = psychoJS.serverManager.prepareResources(res)
-        .catch(function (e) { console.error("Face prefetch failed:", e); });
-    return facesPromise;
-}
+
+    window.facesPromise = psychoJS.serverManager.prepareResources(res)
+        .catch(function(e) {
+            console.error("Face prefetch failed:", e);
+        });
+
+    return window.facesPromise;
+};
 // init psychoJS:
 const psychoJS = new PsychoJS({
   debug: true
@@ -567,6 +577,21 @@ async function experimentInit() {
     depth: 0.0 
   });
   
+  // Supabase Storage configuration
+  window.getSupabaseUrl = function(path) {
+      var SUPABASE_URL = "https://msirntwrwjuzgdbedxvy.supabase.co";
+      var SUPABASE_BUCKET = "experiment";
+      
+      // Remove leading slash and obsolete resources/ prefix
+      var cleanPath = String(path)
+          .replace(/^\/+/, "")
+          .replace(/^resources\//, "");
+  
+      return SUPABASE_URL +
+          "/storage/v1/object/public/" +
+          SUPABASE_BUCKET + "/" +
+          String(path).replace(/^\/+/, "");
+  };
   // Initialize components for Routine "load_scene_pictures"
   load_scene_picturesClock = new util.Clock();
   text_placeholder6 = new visual.TextStim({
@@ -2663,17 +2688,25 @@ function load_scene_picturesRoutineBegin(snapshot) {
     routineTimer.reset();
     load_scene_picturesMaxDurationReached = false;
     // update component parameters for each repeat
-    facesPromise = null;
+    window.facesPromise = null;
     sceneImagesReady = false;
-    var sceneRes = [scene_image, face_image, item_image].map(function (p) {
-        return { name: p, path: p };
+    
+    var sceneRes = [scene_image, face_image, item_image].map(function(p) {
+        return {
+            name: p,
+            path: window.getSupabaseUrl(p)
+        };
     });
+    
     psychoJS.serverManager.prepareResources(sceneRes)
-        .then(function () { sceneImagesReady = true; startFacePrefetch(); })
-        .catch(function (e) {
+        .then(function() {
+            sceneImagesReady = true;
+            window.startFacePrefetch();
+        })
+        .catch(function(e) {
             console.error("Scene image load failed:", sceneRes, e);
             sceneImagesReady = true;
-            startFacePrefetch();
+            window.startFacePrefetch();
         });
     psychoJS.experiment.addData('load_scene_pictures.started', globalClock.getTime());
     load_scene_picturesMaxDuration = null
@@ -3212,8 +3245,14 @@ function load_scene_facesRoutineBegin(snapshot) {
     load_scene_facesMaxDurationReached = false;
     // update component parameters for each repeat
     facesReady = false;
-    if (!facesPromise) { startFacePrefetch(); }   // safety net
-    facesPromise.then(function () { facesReady = true; });
+    
+    if (!window.facesPromise) {
+        window.startFacePrefetch();
+    }
+    
+    window.facesPromise.then(function() {
+        facesReady = true;
+    });
     psychoJS.experiment.addData('load_scene_faces.started', globalClock.getTime());
     load_scene_facesMaxDuration = null
     // keep track of which components have finished
@@ -3344,7 +3383,7 @@ function Face_RankingRoutineBegin(snapshot) {
     folderName = eval("face_folder_" + faceNumber);
     
     // Build the base directory.
-    faceBasePath = "resources/faces/" + gender + "/" + folderName + "/";
+    faceBasePath = "faces/" + gender + "/" + folderName + "/";
     
     // Build paths for the six faces.
     var face1Path = faceBasePath + "1.png";
