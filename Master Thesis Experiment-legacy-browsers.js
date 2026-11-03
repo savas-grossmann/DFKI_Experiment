@@ -115,29 +115,39 @@ async function saveToDataPipe(filename, csv) {
 }
 
 window.startFacePrefetch = function() {
+
     var folders = [
         face_folder_1, face_folder_2, face_folder_3, face_folder_4,
         face_folder_5, face_folder_6, face_folder_7, face_folder_8
     ];
 
-    var res = [];
+    var facePaths = [];
 
     for (var f = 0; f < folders.length; f++) {
+
         for (var i = 1; i <= 6; i++) {
 
-            var p = "faces/" + gender + "/" +
-                    folders[f] + "/" + i + ".png";
+            var p = "faces/" +
+                    gender + "/" +
+                    folders[f] + "/" +
+                    i + ".png";
 
-            res.push({
-                name: p,
-                path: window.getSupabaseUrl(p)
-            });
+            facePaths.push(p);
         }
     }
 
-    window.facesPromise = psychoJS.serverManager.prepareResources(res)
-        .catch(function(e) {
-            console.error("Face prefetch failed:", e);
+    window.facesPromise = Promise.all(
+        facePaths.map(function(path) {
+            return window.loadSupabaseImage(path);
+        })
+    );
+
+    window.facesPromise
+        .then(function() {
+            console.log("All 48 faces loaded directly from Supabase");
+        })
+        .catch(function(error) {
+            console.error("Face prefetch failed:", error);
         });
 
     return window.facesPromise;
@@ -583,6 +593,48 @@ async function experimentInit() {
           "/storage/v1/object/public/" +
           SUPABASE_BUCKET + "/" +
           String(path).replace(/^\/+/, "");
+  };
+  
+  // Cache for loaded Supabase images
+  window.supabaseImages = {};
+  window.supabaseImagePromises = {};
+  
+  window.loadSupabaseImage = function(path) {
+  
+      // Return existing image if already loaded
+      if (window.supabaseImages[path]) {
+          return Promise.resolve(window.supabaseImages[path]);
+      }
+  
+      // Return existing loading promise if already loading
+      if (window.supabaseImagePromises[path]) {
+          return window.supabaseImagePromises[path];
+      }
+  
+      var url = window.getSupabaseUrl(path);
+  
+      var promise = new Promise(function(resolve, reject) {
+  
+          var img = new Image();
+  
+          // Required for cross-origin WebGL texture use
+          img.crossOrigin = "anonymous";
+  
+          img.onload = function() {
+              window.supabaseImages[path] = img;
+              resolve(img);
+          };
+  
+          img.onerror = function() {
+              reject(new Error("Failed to load Supabase image: " + url));
+          };
+  
+          img.src = url;
+      });
+  
+      window.supabaseImagePromises[path] = promise;
+  
+      return promise;
   };
   // Initialize components for Routine "load_scene_pictures"
   load_scene_picturesClock = new util.Clock();
@@ -2694,23 +2746,34 @@ function load_scene_picturesRoutineBegin(snapshot) {
     window.facesPromise = null;
     sceneImagesReady = false;
     
-    var sceneRes = [scene_image, face_image, item_image].map(function(p) {
-        return {
-            name: p,
-            path: window.getSupabaseUrl(p)
-        };
-    });
+    var scenePaths = [
+        scene_image,
+        face_image,
+        item_image
+    ];
     
-    psychoJS.serverManager.prepareResources(sceneRes)
-        .then(function() {
-            sceneImagesReady = true;
-            window.startFacePrefetch();
+    Promise.all(
+        scenePaths.map(function(path) {
+            return window.loadSupabaseImage(path);
         })
-        .catch(function(e) {
-            console.error("Scene image load failed:", sceneRes, e);
-            sceneImagesReady = true;
-            window.startFacePrefetch();
-        });
+    )
+    .then(function(images) {
+    
+        console.log("Scene images loaded directly from Supabase");
+    
+        sceneImagesReady = true;
+    
+        // Start loading the faces
+        window.startFacePrefetch();
+    
+    })
+    .catch(function(error) {
+    
+        console.error("Scene image loading failed:", error);
+    
+        sceneImagesReady = true;
+    
+    });
     psychoJS.experiment.addData('load_scene_pictures.started', globalClock.getTime());
     load_scene_picturesMaxDuration = null
     // keep track of which components have finished
@@ -2851,9 +2914,9 @@ function Scene_Presentation_TripleRoutineBegin(snapshot) {
     scene_position_slot = sceneSlots.indexOf(shuffledSlots[0]) + 1;
     face_position_slot = sceneSlots.indexOf(shuffledSlots[1]) + 1;
     item_position_slot = sceneSlots.indexOf(shuffledSlots[2]) + 1;
-    scene_triple.setImage(scene_image);
-    face_triple.setImage(face_image);
-    item_triple.setImage(item_image);
+    scene_triple.setImage(window.supabaseImages[scene_image]);
+    face_triple.setImage(window.supabaseImages[face_image]);
+    item_triple.setImage(window.supabaseImages[item_image]);
     key_resp_5.keys = undefined;
     key_resp_5.rt = undefined;
     _key_resp_5_allKeys = [];
@@ -3256,9 +3319,13 @@ function load_scene_facesRoutineBegin(snapshot) {
         window.startFacePrefetch();
     }
     
-    window.facesPromise.then(function() {
-        facesReady = true;
-    });
+    window.facesPromise
+        .then(function() {
+            facesReady = true;
+        })
+        .catch(function(error) {
+            console.error("Faces not ready:", error);
+        });
     psychoJS.experiment.addData('load_scene_faces.started', globalClock.getTime());
     load_scene_facesMaxDuration = null
     // keep track of which components have finished
@@ -3404,17 +3471,17 @@ function Face_RankingRoutineBegin(snapshot) {
     console.log("Folder:", folderName);
     console.log("Faces:", face1Path, face2Path, face3Path, face4Path, face5Path, face6Path);
     image_1.setSize(aspectCorrectedSize(0.3, 0.3));
-    image_1.setImage(face1Path);
+    image_1.setImage(window.supabaseImages[face1Path]);
     image_2.setSize(aspectCorrectedSize(0.3, 0.3));
-    image_2.setImage(face2Path);
+    image_2.setImage(window.supabaseImages[face2Path]);
     image_3.setSize(aspectCorrectedSize(0.3, 0.3));
-    image_3.setImage(face3Path);
+    image_3.setImage(window.supabaseImages[face3Path]);
     image_4.setSize(aspectCorrectedSize(0.3, 0.3));
-    image_4.setImage(face4Path);
+    image_4.setImage(window.supabaseImages[face4Path]);
     image_5.setSize(aspectCorrectedSize(0.3, 0.3));
-    image_5.setImage(face5Path);
+    image_5.setImage(window.supabaseImages[face5Path]);
     image_6.setSize(aspectCorrectedSize(0.3, 0.3));
-    image_6.setImage(face6Path);
+    image_6.setImage(window.supabaseImages[face6Path]);
     pos_1.setSize(aspectCorrectedSize(0.32, 0.32));
     pos_2.setSize(aspectCorrectedSize(0.32, 0.32));
     pos_3.setSize(aspectCorrectedSize(0.32, 0.32));
