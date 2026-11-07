@@ -251,6 +251,10 @@ psychoJS.start({
     {'name': 'resources/iat/incong_train.xlsx', 'path': 'resources/iat/incong_train.xlsx'},
     {'name': 'resources/iat/incong_test.xlsx', 'path': 'resources/iat/incong_test.xlsx'},
     {'name': 'default.png', 'path': 'https://pavlovia.org/assets/default/default.png'},
+    {'name': 'resources/conditions/condition_quick_0.xlsx', 'path': 'resources/conditions/condition_quick_0.xlsx'},
+    {'name': 'resources/conditions/condition_quick_1.xlsx', 'path': 'resources/conditions/condition_quick_1.xlsx'},
+    {'name': 'resources/conditions/condition_quick_2.xlsx', 'path': 'resources/conditions/condition_quick_2.xlsx'},
+    {'name': 'resources/conditions/condition_quick_3.xlsx', 'path': 'resources/conditions/condition_quick_3.xlsx'},
     {'name': 'resources/conditions/condition_0.xlsx', 'path': 'resources/conditions/condition_0.xlsx'},
     {'name': 'resources/conditions/condition_1.xlsx', 'path': 'resources/conditions/condition_1.xlsx'},
     {'name': 'resources/conditions/condition_2.xlsx', 'path': 'resources/conditions/condition_2.xlsx'},
@@ -303,7 +307,6 @@ var Quick_ModeClock;
 var text_placeholder5;
 var quickMode;
 var quickModeChoiceDone;
-var sceneLoopNum;
 var faceRankingLoopNum;
 var participant_code;
 var sceneImagesReady;
@@ -405,7 +408,6 @@ async function experimentInit() {
   // Default to normal mode unless the participant chooses Quick Mode.
   quickMode = false;
   quickModeChoiceDone = false;
-  sceneLoopNum = 20;
   faceRankingLoopNum = 8;
   participant_code = 'quickMode_Delete'
   sceneImagesReady = false;
@@ -487,7 +489,6 @@ async function experimentInit() {
       quickModeChoiceDone = true;
       
       if (useQuickMode) {
-          sceneLoopNum = 5;
           faceRankingLoopNum = 3;
       }
   
@@ -2277,7 +2278,11 @@ function Condition_LoadingRoutineBegin(snapshot) {
             throw new Error("Bad condition response: " + JSON.stringify(res.data));
         }
         condition = c;
-        conditionsFile = "resources/conditions/condition_" + condition + ".xlsx";
+        if (quickMode) {
+            conditionsFile = "resources/conditions/condition_quick_" + condition + ".xlsx";
+        } else {
+            conditionsFile = "resources/conditions/condition_" + condition + ".xlsx";
+        }
         conditionReady = true;
     })
     .catch(function(error) {
@@ -2395,7 +2400,7 @@ function Scene_LoopLoopBegin(Scene_LoopLoopScheduler, snapshot) {
     // set up handler to look after randomisation of conditions etc
     Scene_Loop = new TrialHandler({
       psychoJS: psychoJS,
-      nReps: sceneLoopNum, method: TrialHandler.Method.SEQUENTIAL,
+      nReps: 1, method: TrialHandler.Method.SEQUENTIAL,
       extraInfo: expInfo, originPath: undefined,
       trialList: conditionsFile,
       seed: undefined, name: 'Scene_Loop'
