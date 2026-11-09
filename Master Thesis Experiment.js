@@ -160,6 +160,11 @@ window.startFacePrefetch = function() {
 
     return window.facesPromise;
 };
+var expl_done = false;
+var expl_data = {};
+var expl_keys = [];
+var expl_order = '';
+var expl_rt = null;
 // init psychoJS:
 const psychoJS = new PsychoJS({
   debug: true
@@ -234,6 +239,9 @@ flowScheduler.add(IAT_blocksLoopEnd);
 
 
 
+flowScheduler.add(explicit_measurementsRoutineBegin());
+flowScheduler.add(explicit_measurementsRoutineEachFrame());
+flowScheduler.add(explicit_measurementsRoutineEnd());
 flowScheduler.add(End_DemographicsRoutineBegin());
 flowScheduler.add(End_DemographicsRoutineEachFrame());
 flowScheduler.add(End_DemographicsRoutineEnd());
@@ -337,6 +345,7 @@ var face_triple;
 var item_triple;
 var text_continue_triple;
 var key_resp_5;
+var timer_text_2;
 var Scene_DescriptionClock;
 var task_description;
 var response_box;
@@ -391,6 +400,8 @@ var button_right;
 var trial_label_right;
 var IAT_feedbackClock;
 var feedback_msg;
+var explicit_measurementsClock;
+var text_placeholder7;
 var End_DemographicsClock;
 var text_placeholder4;
 var ExitClock;
@@ -703,7 +714,7 @@ async function experimentInit() {
   text_continue_triple = new visual.TextStim({
     win: psychoJS.window,
     name: 'text_continue_triple',
-    text: 'Press RETURN to continue',
+    text: 'Press ENTER to continue',
     font: 'Arial',
     units: undefined, 
     pos: [0, (- 0.8)], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
@@ -713,6 +724,18 @@ async function experimentInit() {
   });
   
   key_resp_5 = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
+  
+  timer_text_2 = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'timer_text_2',
+    text: '',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0.85, 0.45], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: undefined,
+    depth: -7.0 
+  });
   
   // Initialize components for Routine "Scene_Description"
   Scene_DescriptionClock = new util.Clock();
@@ -1240,6 +1263,20 @@ async function experimentInit() {
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: 1,
     depth: -1.0 
+  });
+  
+  // Initialize components for Routine "explicit_measurements"
+  explicit_measurementsClock = new util.Clock();
+  text_placeholder7 = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'text_placeholder7',
+    text: '',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: 0.0,
+    depth: 0.0 
   });
   
   // Initialize components for Routine "End_Demographics"
@@ -2871,6 +2908,8 @@ var face_position_slot;
 var item_position_slot;
 var scene_layout;
 var _key_resp_5_allKeys;
+var task_timer_start;
+var task_timer_duration;
 var Scene_Presentation_TripleMaxDuration;
 var Scene_Presentation_TripleComponents;
 function Scene_Presentation_TripleRoutineBegin(snapshot) {
@@ -3058,8 +3097,11 @@ function Scene_Presentation_TripleRoutineBegin(snapshot) {
     key_resp_5.keys = undefined;
     key_resp_5.rt = undefined;
     _key_resp_5_allKeys = [];
+    // Run 'Begin Routine' code from timer_2
+    task_timer_start = globalClock.getTime();
+    task_timer_duration = 40;
     psychoJS.experiment.addData('Scene_Presentation_Triple.started', globalClock.getTime());
-    Scene_Presentation_TripleMaxDuration = null
+    Scene_Presentation_TripleMaxDuration = 40
     // keep track of which components have finished
     Scene_Presentation_TripleComponents = [];
     Scene_Presentation_TripleComponents.push(scene_triple);
@@ -3067,6 +3109,7 @@ function Scene_Presentation_TripleRoutineBegin(snapshot) {
     Scene_Presentation_TripleComponents.push(item_triple);
     Scene_Presentation_TripleComponents.push(text_continue_triple);
     Scene_Presentation_TripleComponents.push(key_resp_5);
+    Scene_Presentation_TripleComponents.push(timer_text_2);
     
     for (const thisComponent of Scene_Presentation_TripleComponents)
       if ('status' in thisComponent)
@@ -3076,6 +3119,8 @@ function Scene_Presentation_TripleRoutineBegin(snapshot) {
 }
 
 
+var time_left;
+var seconds;
 function Scene_Presentation_TripleRoutineEachFrame() {
   return async function () {
     //--- Loop for each frame of Routine 'Scene_Presentation_Triple' ---
@@ -3083,6 +3128,11 @@ function Scene_Presentation_TripleRoutineEachFrame() {
     t = Scene_Presentation_TripleClock.getTime();
     frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
     // update/draw components on each frame
+    // is it time to end the Routine? (based on local clock)
+    if (t > Scene_Presentation_TripleMaxDuration) {
+        Scene_Presentation_TripleMaxDurationReached = true
+        continueRoutine = false
+    }
     
     // *scene_triple* updates
     if (t >= 0.0 && scene_triple.status === PsychoJS.Status.NOT_STARTED) {
@@ -3170,6 +3220,37 @@ function Scene_Presentation_TripleRoutineEachFrame() {
         // a response ends the routine
         continueRoutine = false;
       }
+    }
+    
+    // Run 'Each Frame' code from timer_2
+    time_left = task_timer_duration - (
+        globalClock.getTime() - task_timer_start
+    );
+    
+    seconds = Math.max(0, Math.floor(time_left));
+    
+    timer_text.setText(String(seconds));
+    
+    if (time_left <= 0) {
+        continueRoutine = false;
+    }
+    
+    // *timer_text_2* updates
+    if (t >= 0.0 && timer_text_2.status === PsychoJS.Status.NOT_STARTED) {
+      // update params
+      timer_text_2.setText(`${seconds}`, false);
+      // keep track of start time/frame for later
+      timer_text_2.tStart = t;  // (not accounting for frame time here)
+      timer_text_2.frameNStart = frameN;  // exact frame index
+      
+      timer_text_2.setAutoDraw(true);
+    }
+    
+    
+    // if timer_text_2 is active this frame...
+    if (timer_text_2.status === PsychoJS.Status.STARTED) {
+      // update params
+      timer_text_2.setText(`${seconds}`, false);
     }
     
     // check for quit (typically the Esc key)
@@ -3565,8 +3646,6 @@ var mouseReleased;
 var submit_allowed;
 var placement_count;
 var gotValidClick;
-var task_timer_start;
-var task_timer_duration;
 var _finish_ranking_key_allKeys;
 var Face_RankingMaxDuration;
 var Face_RankingComponents;
@@ -3712,8 +3791,6 @@ function Face_RankingRoutineBegin(snapshot) {
 }
 
 
-var time_left;
-var seconds;
 function Face_RankingRoutineEachFrame() {
   return async function () {
     //--- Loop for each frame of Routine 'Face_Ranking' ---
@@ -5342,6 +5419,282 @@ function IAT_feedbackRoutineEnd(snapshot) {
     } else {
         IAT_feedbackClock.add(1.000000);
     }
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+var explicit_measurementsMaxDurationReached;
+var expl_done;
+var expl_data;
+var expl_keys;
+var expl_order;
+var expl_rt;
+var explicit_measurementsMaxDuration;
+var explicit_measurementsComponents;
+function explicit_measurementsRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'explicit_measurements' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    explicit_measurementsClock.reset();
+    routineTimer.reset();
+    explicit_measurementsMaxDurationReached = false;
+    // update component parameters for each repeat
+    // ---------- Texts (adjust here) ----------
+    var LABELS = {
+        title: 'Ratings',
+        instruction: 'Please estimate how strongly each characteristic applies to men of the two groups. ' +
+                     'Click on a scale to answer (0 % = does not apply at all, 100 % = applies completely).',
+        groups: [
+            ['A_weiss', 'Group A: White men / men without a migration background'],
+            ['B_arab',  'Group B: Arab / Muslim men']
+        ],
+        traits: [
+            ['aggressiv',    'aggressive'],
+            ['gewalttaetig', 'violent'],
+            ['bedrohlich',   'threatening'],
+            ['kriminell',    'criminal'],
+            ['gefaehrlich',  'dangerous']
+        ],
+        scaleMin: '0 %',
+        scaleMax: '100 %',
+        button: 'Continue',
+        error: 'Please answer all questions.'
+    };
+    var SHUFFLE_TRAITS = true;
+    
+    // ---------- Reset globals ----------
+    expl_done = false;
+    expl_data = {};
+    expl_keys = [];
+    expl_order = '';
+    expl_rt = null;
+    
+    // Trait order (shuffled per participant)
+    var traits = LABELS.traits.slice();
+    if (SHUFFLE_TRAITS) {
+        for (var i = traits.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = traits[i]; traits[i] = traits[j]; traits[j] = tmp;
+        }
+    }
+    var orderArr = [];
+    for (var a = 0; a < traits.length; a++) { orderArr.push(traits[a][0]); }
+    expl_order = orderArr.join(',');
+    
+    // Column keys (always the same set, also when skipped in quick mode)
+    for (var ti0 = 0; ti0 < traits.length; ti0++) {
+        for (var gi0 = 0; gi0 < LABELS.groups.length; gi0++) {
+            expl_keys.push(LABELS.groups[gi0][0] + '_' + traits[ti0][0]);
+        }
+    }
+    
+    if (quickMode) {
+        continueRoutine = false;
+        expl_done = true;
+    } else {
+        // Hide the PsychoJS canvas temporarily
+        psychoJS.window._renderer.view.style.display = 'none';
+    
+        // ---------- Styles ----------
+        var styleEl = document.createElement('style');
+        styleEl.id = 'expl-style';
+        styleEl.textContent =
+            '#expl-card, #expl-card * {box-sizing:border-box;}' +
+            '#expl-card .expl-grid {display:grid;grid-template-columns:minmax(90px,130px) 1fr 1fr;gap:18px 28px;align-items:start;}' +
+            '#expl-card .expl-head {font-weight:bold;font-size:14px;line-height:1.3;overflow-wrap:anywhere;word-break:break-word;}' +
+            '#expl-card .expl-trait {font-weight:bold;font-size:16px;overflow-wrap:anywhere;word-break:break-word;padding-top:2px;}' +
+            '#expl-card .expl-cell {min-width:0;}' +
+            '#expl-card input[type=range] {width:100%;margin:4px 0 0 0;background:transparent;-webkit-appearance:none;appearance:none;height:24px;cursor:pointer;}' +
+            '#expl-card input[type=range]::-webkit-slider-runnable-track {height:6px;background:#555;border-radius:3px;}' +
+            '#expl-card input[type=range]::-moz-range-track {height:6px;background:#555;border-radius:3px;}' +
+            '#expl-card input[type=range]::-webkit-slider-thumb {-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:darkgrey;border:2px solid white;margin-top:-7px;}' +
+            '#expl-card input[type=range]::-moz-range-thumb {width:16px;height:16px;border-radius:50%;background:darkgrey;border:2px solid white;}' +
+            '#expl-card input[type=range].expl-untouched::-webkit-slider-thumb {opacity:0;}' +
+            '#expl-card input[type=range].expl-untouched::-moz-range-thumb {opacity:0;}' +
+            '#expl-card .expl-scale {display:flex;justify-content:space-between;font-size:12px;color:#aaa;}' +
+            '#expl-card .expl-val {text-align:center;font-size:13px;min-height:17px;margin-top:2px;}' +
+            '@media (max-width:640px) {' +
+            '  #expl-card .expl-grid {grid-template-columns:1fr 1fr;gap:12px 16px;}' +
+            '  #expl-card .expl-spacer {display:none;}' +
+            '  #expl-card .expl-trait {grid-column:1 / span 2;margin-top:10px;}' +
+            '}';
+        document.head.appendChild(styleEl);
+    
+        // ---------- Overlay ----------
+        var overlay = document.createElement('div');
+        overlay.id = 'expl-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
+    
+        var html = '<div id="expl-card" style="background:#222;padding:32px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,780px);max-height:94vh;overflow-y:auto;">' +
+            '<h2 style="margin-top:0;">' + LABELS.title + '</h2>' +
+            '<p style="margin:0 0 24px 0;line-height:1.4;overflow-wrap:anywhere;">' + LABELS.instruction + '</p>' +
+            '<div class="expl-grid">' +
+            '<div class="expl-spacer"></div>';
+    
+        for (var g = 0; g < LABELS.groups.length; g++) {
+            html += '<div class="expl-head">' + LABELS.groups[g][1] + '</div>';
+        }
+    
+        for (var t = 0; t < traits.length; t++) {
+            html += '<div class="expl-trait">' + traits[t][1] + '</div>';
+            for (var g2 = 0; g2 < LABELS.groups.length; g2++) {
+                var key = LABELS.groups[g2][0] + '_' + traits[t][0];
+                html += '<div class="expl-cell">' +
+                    '<input id="expl-sl-' + key + '" class="expl-untouched" type="range" min="0" max="100" step="1" value="50">' +
+                    '<div class="expl-scale"><span>' + LABELS.scaleMin + '</span><span>' + LABELS.scaleMax + '</span></div>' +
+                    '<div id="expl-val-' + key + '" class="expl-val"></div>' +
+                    '</div>';
+            }
+        }
+    
+        html += '</div>' +
+            '<button id="expl-submit" style="width:100%;padding:12px;margin-top:28px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + LABELS.button + '</button>' +
+            '<p id="expl-error" style="color:red;display:none;margin-top:10px;">' + LABELS.error + '</p>' +
+            '</div>';
+    
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+    
+        // ---------- Slider logic ----------
+        var touched = {};
+        function bindSlider(k) {
+            var el = document.getElementById('expl-sl-' + k);
+            var valEl = document.getElementById('expl-val-' + k);
+            function mark() {
+                touched[k] = true;
+                el.classList.remove('expl-untouched');
+                valEl.textContent = el.value + ' %';
+            }
+            el.addEventListener('pointerdown', mark);
+            el.addEventListener('input', mark);
+            el.addEventListener('keydown', mark);
+        }
+        for (var s = 0; s < expl_keys.length; s++) { bindSlider(expl_keys[s]); }
+    
+        var tStart = performance.now();
+    
+        document.getElementById('expl-submit').addEventListener('click', function() {
+            for (var m = 0; m < expl_keys.length; m++) {
+                if (!touched[expl_keys[m]]) {
+                    document.getElementById('expl-error').style.display = 'block';
+                    return;
+                }
+            }
+            for (var n = 0; n < expl_keys.length; n++) {
+                expl_data[expl_keys[n]] = parseInt(document.getElementById('expl-sl-' + expl_keys[n]).value, 10);
+            }
+            expl_rt = (performance.now() - tStart) / 1000;
+    
+            // clean up
+            document.body.removeChild(overlay);
+            document.head.removeChild(styleEl);
+            psychoJS.window._renderer.view.style.display = 'block';
+            expl_done = true;
+        });
+    }
+    psychoJS.experiment.addData('explicit_measurements.started', globalClock.getTime());
+    explicit_measurementsMaxDuration = null
+    // keep track of which components have finished
+    explicit_measurementsComponents = [];
+    explicit_measurementsComponents.push(text_placeholder7);
+    
+    for (const thisComponent of explicit_measurementsComponents)
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function explicit_measurementsRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'explicit_measurements' ---
+    // get current time
+    t = explicit_measurementsClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    
+    // *text_placeholder7* updates
+    if (t >= 0.0 && text_placeholder7.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      text_placeholder7.tStart = t;  // (not accounting for frame time here)
+      text_placeholder7.frameNStart = frameN;  // exact frame index
+      
+      text_placeholder7.setAutoDraw(true);
+    }
+    
+    
+    // if text_placeholder7 is active this frame...
+    if (text_placeholder7.status === PsychoJS.Status.STARTED) {
+    }
+    
+    if (expl_done) {
+        continueRoutine = false;
+    }
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    for (const thisComponent of explicit_measurementsComponents)
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+        break;
+      }
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+function explicit_measurementsRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'explicit_measurements' ---
+    for (const thisComponent of explicit_measurementsComponents) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    }
+    psychoJS.experiment.addData('explicit_measurements.stopped', globalClock.getTime());
+    for (var q = 0; q < expl_keys.length; q++) {
+        var kq = expl_keys[q];
+        psychoJS.experiment.addData('explicit_' + kq, (kq in expl_data) ? expl_data[kq] : '');
+    }
+    psychoJS.experiment.addData('explicit_rt', expl_rt);
+    psychoJS.experiment.addData('explicit_trait_order', expl_order);
+    
+    // safety cleanup in case the routine ended early
+    var ov = document.getElementById('expl-overlay');
+    if (ov) { document.body.removeChild(ov); }
+    var st = document.getElementById('expl-style');
+    if (st) { document.head.removeChild(st); }
+    psychoJS.window._renderer.view.style.display = 'block';
+    // the Routine "explicit_measurements" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
     // Routines running outside a loop should always advance the datafile row
     if (currentLoop === psychoJS.experiment) {
       psychoJS.experiment.nextEntry(snapshot);
