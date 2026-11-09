@@ -5499,110 +5499,105 @@ function explicit_measurementsRoutineBegin(snapshot) {
         }
     }
     
-    if (quickMode) {
-        continueRoutine = false;
-        expl_done = true;
-    } else {
-        // Hide the PsychoJS canvas temporarily
-        psychoJS.window._renderer.view.style.display = 'none';
+    // Hide the PsychoJS canvas temporarily
+    psychoJS.window._renderer.view.style.display = 'none';
     
-        // ---------- Styles ----------
-        var styleEl = document.createElement('style');
-        styleEl.id = 'expl-style';
-        styleEl.textContent =
-            '#expl-card, #expl-card * {box-sizing:border-box;}' +
-            '#expl-card .expl-grid {display:grid;grid-template-columns:minmax(90px,130px) 1fr 1fr;gap:18px 28px;align-items:start;}' +
-            '#expl-card .expl-head {font-weight:bold;font-size:14px;line-height:1.3;overflow-wrap:anywhere;word-break:break-word;}' +
-            '#expl-card .expl-trait {font-weight:bold;font-size:16px;overflow-wrap:anywhere;word-break:break-word;padding-top:2px;}' +
-            '#expl-card .expl-cell {min-width:0;}' +
-            '#expl-card input[type=range] {width:100%;margin:4px 0 0 0;background:transparent;-webkit-appearance:none;appearance:none;height:24px;cursor:pointer;}' +
-            '#expl-card input[type=range]::-webkit-slider-runnable-track {height:6px;background:#555;border-radius:3px;}' +
-            '#expl-card input[type=range]::-moz-range-track {height:6px;background:#555;border-radius:3px;}' +
-            '#expl-card input[type=range]::-webkit-slider-thumb {-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:darkgrey;border:2px solid white;margin-top:-7px;}' +
-            '#expl-card input[type=range]::-moz-range-thumb {width:16px;height:16px;border-radius:50%;background:darkgrey;border:2px solid white;}' +
-            '#expl-card input[type=range].expl-untouched::-webkit-slider-thumb {opacity:0;}' +
-            '#expl-card input[type=range].expl-untouched::-moz-range-thumb {opacity:0;}' +
-            '#expl-card .expl-scale {display:flex;justify-content:space-between;font-size:12px;color:#aaa;}' +
-            '#expl-card .expl-val {text-align:center;font-size:13px;min-height:17px;margin-top:2px;}' +
-            '@media (max-width:640px) {' +
-            '  #expl-card .expl-grid {grid-template-columns:1fr 1fr;gap:12px 16px;}' +
-            '  #expl-card .expl-spacer {display:none;}' +
-            '  #expl-card .expl-trait {grid-column:1 / span 2;margin-top:10px;}' +
-            '}';
-        document.head.appendChild(styleEl);
+    // ---------- Styles ----------
+    var styleEl = document.createElement('style');
+    styleEl.id = 'expl-style';
+    styleEl.textContent =
+        '#expl-card, #expl-card * {box-sizing:border-box;}' +
+        '#expl-card .expl-grid {display:grid;grid-template-columns:minmax(90px,130px) 1fr 1fr;gap:18px 28px;align-items:start;}' +
+        '#expl-card .expl-head {font-weight:bold;font-size:14px;line-height:1.3;overflow-wrap:anywhere;word-break:break-word;}' +
+        '#expl-card .expl-trait {font-weight:bold;font-size:16px;overflow-wrap:anywhere;word-break:break-word;padding-top:2px;}' +
+        '#expl-card .expl-cell {min-width:0;}' +
+        '#expl-card input[type=range] {width:100%;margin:4px 0 0 0;background:transparent;-webkit-appearance:none;appearance:none;height:24px;cursor:pointer;}' +
+        '#expl-card input[type=range]::-webkit-slider-runnable-track {height:6px;background:#555;border-radius:3px;}' +
+        '#expl-card input[type=range]::-moz-range-track {height:6px;background:#555;border-radius:3px;}' +
+        '#expl-card input[type=range]::-webkit-slider-thumb {-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:darkgrey;border:2px solid white;margin-top:-7px;}' +
+        '#expl-card input[type=range]::-moz-range-thumb {width:16px;height:16px;border-radius:50%;background:darkgrey;border:2px solid white;}' +
+        '#expl-card input[type=range].expl-untouched::-webkit-slider-thumb {opacity:0;}' +
+        '#expl-card input[type=range].expl-untouched::-moz-range-thumb {opacity:0;}' +
+        '#expl-card .expl-scale {display:flex;justify-content:space-between;font-size:12px;color:#aaa;}' +
+        '#expl-card .expl-val {text-align:center;font-size:13px;min-height:17px;margin-top:2px;}' +
+        '@media (max-width:640px) {' +
+        '  #expl-card .expl-grid {grid-template-columns:1fr 1fr;gap:12px 16px;}' +
+        '  #expl-card .expl-spacer {display:none;}' +
+        '  #expl-card .expl-trait {grid-column:1 / span 2;margin-top:10px;}' +
+        '}';
+    document.head.appendChild(styleEl);
     
-        // ---------- Overlay ----------
-        var overlay = document.createElement('div');
-        overlay.id = 'expl-overlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
+    // ---------- Overlay ----------
+    var overlay = document.createElement('div');
+    overlay.id = 'expl-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
     
-        var html = '<div id="expl-card" style="background:#222;padding:32px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,780px);max-height:94vh;overflow-y:auto;">' +
-            '<h2 style="margin-top:0;">' + LABELS.title + '</h2>' +
-            '<p style="margin:0 0 24px 0;line-height:1.4;overflow-wrap:anywhere;">' + LABELS.instruction + '</p>' +
-            '<div class="expl-grid">' +
-            '<div class="expl-spacer"></div>';
+    var html = '<div id="expl-card" style="background:#222;padding:32px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,780px);max-height:94vh;overflow-y:auto;">' +
+        '<h2 style="margin-top:0;">' + LABELS.title + '</h2>' +
+        '<p style="margin:0 0 24px 0;line-height:1.4;overflow-wrap:anywhere;">' + LABELS.instruction + '</p>' +
+        '<div class="expl-grid">' +
+        '<div class="expl-spacer"></div>';
     
-        for (var g = 0; g < LABELS.groups.length; g++) {
-            html += '<div class="expl-head">' + LABELS.groups[g][1] + '</div>';
-        }
-    
-        for (var t = 0; t < traits.length; t++) {
-            html += '<div class="expl-trait">' + traits[t][1] + '</div>';
-            for (var g2 = 0; g2 < LABELS.groups.length; g2++) {
-                var key = LABELS.groups[g2][0] + '_' + traits[t][0];
-                html += '<div class="expl-cell">' +
-                    '<input id="expl-sl-' + key + '" class="expl-untouched" type="range" min="0" max="100" step="1" value="50">' +
-                    '<div class="expl-scale"><span>' + LABELS.scaleMin + '</span><span>' + LABELS.scaleMax + '</span></div>' +
-                    '<div id="expl-val-' + key + '" class="expl-val"></div>' +
-                    '</div>';
-            }
-        }
-    
-        html += '</div>' +
-            '<button id="expl-submit" style="width:100%;padding:12px;margin-top:28px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + LABELS.button + '</button>' +
-            '<p id="expl-error" style="color:red;display:none;margin-top:10px;">' + LABELS.error + '</p>' +
-            '</div>';
-    
-        overlay.innerHTML = html;
-        document.body.appendChild(overlay);
-    
-        // ---------- Slider logic ----------
-        var touched = {};
-        function bindSlider(k) {
-            var el = document.getElementById('expl-sl-' + k);
-            var valEl = document.getElementById('expl-val-' + k);
-            function mark() {
-                touched[k] = true;
-                el.classList.remove('expl-untouched');
-                valEl.textContent = el.value + ' %';
-            }
-            el.addEventListener('pointerdown', mark);
-            el.addEventListener('input', mark);
-            el.addEventListener('keydown', mark);
-        }
-        for (var s = 0; s < expl_keys.length; s++) { bindSlider(expl_keys[s]); }
-    
-        var tStart = performance.now();
-    
-        document.getElementById('expl-submit').addEventListener('click', function() {
-            for (var m = 0; m < expl_keys.length; m++) {
-                if (!touched[expl_keys[m]]) {
-                    document.getElementById('expl-error').style.display = 'block';
-                    return;
-                }
-            }
-            for (var n = 0; n < expl_keys.length; n++) {
-                expl_data[expl_keys[n]] = parseInt(document.getElementById('expl-sl-' + expl_keys[n]).value, 10);
-            }
-            expl_rt = (performance.now() - tStart) / 1000;
-    
-            // clean up
-            document.body.removeChild(overlay);
-            document.head.removeChild(styleEl);
-            psychoJS.window._renderer.view.style.display = 'block';
-            expl_done = true;
-        });
+    for (var g = 0; g < LABELS.groups.length; g++) {
+        html += '<div class="expl-head">' + LABELS.groups[g][1] + '</div>';
     }
+    
+    for (var t = 0; t < traits.length; t++) {
+        html += '<div class="expl-trait">' + traits[t][1] + '</div>';
+        for (var g2 = 0; g2 < LABELS.groups.length; g2++) {
+            var key = LABELS.groups[g2][0] + '_' + traits[t][0];
+            html += '<div class="expl-cell">' +
+                '<input id="expl-sl-' + key + '" class="expl-untouched" type="range" min="0" max="100" step="1" value="50">' +
+                '<div class="expl-scale"><span>' + LABELS.scaleMin + '</span><span>' + LABELS.scaleMax + '</span></div>' +
+                '<div id="expl-val-' + key + '" class="expl-val"></div>' +
+                '</div>';
+        }
+    }
+    
+    html += '</div>' +
+        '<button id="expl-submit" style="width:100%;padding:12px;margin-top:28px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + LABELS.button + '</button>' +
+        '<p id="expl-error" style="color:red;display:none;margin-top:10px;">' + LABELS.error + '</p>' +
+        '</div>';
+    
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+    
+    // ---------- Slider logic ----------
+    var touched = {};
+    function bindSlider(k) {
+        var el = document.getElementById('expl-sl-' + k);
+        var valEl = document.getElementById('expl-val-' + k);
+        function mark() {
+            touched[k] = true;
+            el.classList.remove('expl-untouched');
+            valEl.textContent = el.value + ' %';
+        }
+        el.addEventListener('pointerdown', mark);
+        el.addEventListener('input', mark);
+        el.addEventListener('keydown', mark);
+    }
+    for (var s = 0; s < expl_keys.length; s++) { bindSlider(expl_keys[s]); }
+    
+    var tStart = performance.now();
+    
+    document.getElementById('expl-submit').addEventListener('click', function() {
+        for (var m = 0; m < expl_keys.length; m++) {
+            if (!touched[expl_keys[m]]) {
+                document.getElementById('expl-error').style.display = 'block';
+                return;
+            }
+        }
+        for (var n = 0; n < expl_keys.length; n++) {
+            expl_data[expl_keys[n]] = parseInt(document.getElementById('expl-sl-' + expl_keys[n]).value, 10);
+        }
+        expl_rt = (performance.now() - tStart) / 1000;
+    
+        // clean up
+        document.body.removeChild(overlay);
+        document.head.removeChild(styleEl);
+        psychoJS.window._renderer.view.style.display = 'block';
+        expl_done = true;
+    });
     psychoJS.experiment.addData('explicit_measurements.started', globalClock.getTime());
     explicit_measurementsMaxDuration = null
     // keep track of which components have finished
