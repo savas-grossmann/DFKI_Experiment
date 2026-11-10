@@ -406,7 +406,6 @@ var End_DemographicsClock;
 var text_placeholder4;
 var ExitClock;
 var exit_message;
-var key_resp_2;
 var globalClock;
 var routineTimer;
 async function experimentInit() {
@@ -574,10 +573,10 @@ async function experimentInit() {
   instruction_text = new visual.TextStim({
     win: psychoJS.window,
     name: 'instruction_text',
-    text: 'Welcome to the experiment.\n\nIn this study, you will complete a series of trials consisting of three phases.\n\nPhase 1 – Scene Presentation\n\nYou will first see a short scene description together with an image.\n\nPhase 2 – Face Description\n\nAfter viewing the scene, you will be asked to briefly describe the face of the person shown in the scene using your own words.\n\nPhase 3 – Face Ranking\n\nNext, you will see a collage containing six faces. Your task is to rank the faces according to how likely they match the previously shown scene.\n\nPlace the face you think matches the scene best closer to “Most likely” and the face you think matches the scene least closer to “Least likely”.\n\nThere are no correct or incorrect answers.\n\nPress ENTER to begin.',
+    text: '',
     font: 'Arial',
     units: undefined, 
-    pos: [0, 0], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
+    pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
     depth: 0.0 
@@ -585,6 +584,10 @@ async function experimentInit() {
   
   key_resp = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
   
+  // Run 'Begin Experiment' code from code_3
+  var instr_done = false;
+  var instr_rt = null;
+  var instr_keyHandler = null;
   // Initialize components for Routine "Condition_Loading"
   Condition_LoadingClock = new util.Clock();
   wait_text = new visual.TextStim({
@@ -1298,7 +1301,7 @@ async function experimentInit() {
   exit_message = new visual.TextStim({
     win: psychoJS.window,
     name: 'exit_message',
-    text: 'Thank you for taking part in this experiment!\n\nPress SPACE to exit.',
+    text: '',
     font: 'Arial',
     units: undefined, 
     pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
@@ -1307,8 +1310,8 @@ async function experimentInit() {
     depth: 0.0 
   });
   
-  key_resp_2 = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
-  
+  var debrief_done = false;
+  var debrief_rt = null;
   // Create some handy timers
   globalClock = new util.Clock();  // to track the time since experiment started
   routineTimer = new util.CountdownTimer();  // to track time remaining of each (non-slip) routine
@@ -2132,6 +2135,9 @@ function DemographicsRoutineEnd(snapshot) {
 
 var InstructionsMaxDurationReached;
 var _key_resp_allKeys;
+var instr_done;
+var instr_rt;
+var instr_keyHandler;
 var InstructionsMaxDuration;
 var InstructionsComponents;
 function InstructionsRoutineBegin(snapshot) {
@@ -2151,6 +2157,92 @@ function InstructionsRoutineBegin(snapshot) {
     key_resp.keys = undefined;
     key_resp.rt = undefined;
     _key_resp_allKeys = [];
+    // ---------- Texts (adjust here) ----------
+    var TEXT = {
+        title: 'Welcome to the experiment',
+        intro: 'In this study, you will complete a series of trials consisting of three phases, followed by a short sorting task.',
+        phases: [
+            ['Phase 1 – Scene Presentation',
+             'You will first see a short scene description together with an image.'],
+            ['Phase 2 – Face Description',
+             'After viewing the scene, you will be asked to briefly describe the face of the person shown in the scene using your own words.'],
+            ['Phase 3 – Face Ranking',
+             'Next, you will see a collage containing six faces. Your task is to rank the faces according to how likely they match the previously shown scene.<br><br>' +
+             'Place the face you think matches the scene best closer to <b>“Most likely”</b> and the face you think matches the scene least closer to <b>“Least likely”</b>.'],
+            ['Phase 4 – Sorting Task',
+             'Afterwards, you will complete a short sorting task. Words and images appear one at a time, and you assign each one to a category as quickly and as accurately as possible using the keyboard. Detailed instructions will follow before this task starts.']
+        ],
+        note: 'There are no correct or incorrect answers.',
+        button: 'Start',
+        hint: 'or press ENTER to begin'
+    };
+    
+    // ---------- Reset globals ----------
+    instr_done = false;
+    instr_rt = null;
+    instr_keyHandler = null;
+    
+    // Hide the PsychoJS canvas temporarily
+    psychoJS.window._renderer.view.style.display = 'none';
+    
+    // ---------- Styles ----------
+    var inStyle = document.createElement('style');
+    inStyle.id = 'instr-style';
+    inStyle.textContent =
+        '#instr-card, #instr-card * {box-sizing:border-box;}' +
+        '#instr-card p {margin:0;line-height:1.5;font-size:15px;overflow-wrap:anywhere;word-break:break-word;}' +
+        '#instr-card .instr-phase {background:#2c2c2c;border-radius:6px;padding:14px 18px;margin-top:14px;}' +
+        '#instr-card .instr-phase h3 {font-size:16px;margin:0 0 6px 0;}' +
+        '#instr-card .instr-hint {text-align:center;font-size:13px;color:#aaa;margin-top:10px;}';
+    document.head.appendChild(inStyle);
+    
+    // ---------- Overlay ----------
+    var overlay = document.createElement('div');
+    overlay.id = 'instr-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
+    
+    var html = '<div id="instr-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,700px);max-height:94vh;overflow-y:auto;">' +
+        '<h2 style="margin-top:0;">' + TEXT.title + '</h2>' +
+        '<p>' + TEXT.intro + '</p>';
+    
+    for (var i = 0; i < TEXT.phases.length; i++) {
+        html += '<div class="instr-phase"><h3>' + TEXT.phases[i][0] + '</h3><p>' + TEXT.phases[i][1] + '</p></div>';
+    }
+    
+    html += '<p style="margin-top:20px;font-weight:bold;">' + TEXT.note + '</p>' +
+        '<button id="instr-submit" style="width:100%;padding:12px;margin-top:22px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + TEXT.button + '</button>' +
+        '<p class="instr-hint">' + TEXT.hint + '</p>' +
+        '</div>';
+    
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+    
+    // ---------- Finish logic ----------
+    var inStart = performance.now();
+    
+    function instrFinish() {
+        if (instr_done) { return; }
+        instr_rt = (performance.now() - inStart) / 1000;
+        if (instr_keyHandler) {
+            document.removeEventListener('keydown', instr_keyHandler);
+            instr_keyHandler = null;
+        }
+        document.body.removeChild(overlay);
+        document.head.removeChild(inStyle);
+        psychoJS.window._renderer.view.style.display = 'block';
+        instr_done = true;
+    }
+    
+    document.getElementById('instr-submit').addEventListener('click', instrFinish);
+    
+    // ENTER key (ignored during the first 400 ms and for held keys)
+    instr_keyHandler = function(e) {
+        if (e.key === 'Enter' && !e.repeat && (performance.now() - inStart) > 400) {
+            e.preventDefault();
+            instrFinish();
+        }
+    };
+    document.addEventListener('keydown', instr_keyHandler);
     psychoJS.experiment.addData('Instructions.started', globalClock.getTime());
     InstructionsMaxDuration = null
     // keep track of which components have finished
@@ -2217,6 +2309,9 @@ function InstructionsRoutineEachFrame() {
       }
     }
     
+    if (instr_done) {
+        continueRoutine = false;
+    }
     // check for quit (typically the Esc key)
     if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
       return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
@@ -2266,6 +2361,18 @@ function InstructionsRoutineEnd(snapshot) {
         }
     
     key_resp.stop();
+    psychoJS.experiment.addData('instructions_rt', instr_rt);
+    
+    // safety cleanup in case the routine ended early
+    if (instr_keyHandler) {
+        document.removeEventListener('keydown', instr_keyHandler);
+        instr_keyHandler = null;
+    }
+    var inOv = document.getElementById('instr-overlay');
+    if (inOv) { document.body.removeChild(inOv); }
+    var inSt = document.getElementById('instr-style');
+    if (inSt) { document.head.removeChild(inSt); }
+    psychoJS.window._renderer.view.style.display = 'block';
     // the Routine "Instructions" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -5926,7 +6033,8 @@ function End_DemographicsRoutineEnd(snapshot) {
 
 
 var ExitMaxDurationReached;
-var _key_resp_2_allKeys;
+var debrief_done;
+var debrief_rt;
 var ExitMaxDuration;
 var ExitComponents;
 function ExitRoutineBegin(snapshot) {
@@ -5943,21 +6051,140 @@ function ExitRoutineBegin(snapshot) {
     routineTimer.reset();
     ExitMaxDurationReached = false;
     // update component parameters for each repeat
-    psychoJS._saveResults = 0;
+    // ---------- Texts (adjust here) ----------
+    var TEXT = {
+        title: 'Debriefing',
+        thanks: 'Thank you for taking part in this study!',
+        sections: [
+            ['What this study is about',
+             'We investigated whether <b>stereotypes</b> and <b>biases</b> influence how people interpret everyday situations. ' +
+             'A <i>bias</i> is a systematic tendency to judge people or situations in a certain way, often based on group membership such as gender, origin or religion.'],
+            ['What you did',
+             'You saw 20 short scenes, 10 with a crime-related context and 10 with a neutral one. ' +
+             'For each scene, you described the face of the person shown and ranked six faces by how likely they matched the scene. ' +
+             'You also completed a sorting task, the Implicit Association Test (IAT), which uses your response speed to measure how strongly concepts are automatically associated with each other. ' +
+             'At the end, you rated several characteristics for two groups of men.'],
+            ['What we are looking for',
+             'Some biases are <b>explicit</b>: people are aware of them and can report them, as in the final ratings. ' +
+             'Others are <b>implicit</b> (also called <i>unknown</i> or <i>unconscious</i> biases): they work automatically, and people often don\'t notice them, ' +
+             'yet they can still influence decisions, such as which face seems to fit a crime scene. ' +
+             'By comparing your rankings and descriptions with your ratings, we can see whether implicit and explicit biases match and whether the scene context changes which faces people choose. ' +
+             'The faces were selected to look as non-stereotypical as possible, so differences in the rankings cannot be explained by the faces alone.']
+        ],
+        importantTitle: 'Important to know',
+        bullets: [
+            'Having biases is <b>normal</b>. They are a by-product of how the brain learns from environment, media and culture, and they say nothing about your character.',
+            'There are <b>no right or wrong answers</b>, and your results are not evaluated individually.',
+            'Your data is stored <b>anonymously</b> under a randomly generated participant code.'
+        ],
+        button: 'Finish'
+    };
     
-    await saveToDataPipe(
-        "participant_" + (participant_code || "UNKNOWN") + "_" + sessionTag + "_final.csv",
-        convertToCSV(psychoJS.experiment._trialsData)
-    );
-    key_resp_2.keys = undefined;
-    key_resp_2.rt = undefined;
-    _key_resp_2_allKeys = [];
+    // ---------- Status texts ----------
+    var SAVE_MSG_WAIT = 'Saving your data… please do not close this window.';
+    var SAVE_MSG_OK   = 'Your data has been saved. You can now finish the study.';
+    var SAVE_MSG_FAIL = 'The final save did not complete. You can still finish the study.';
+    
+    // ---------- Reset globals ----------
+    debrief_done = false;
+    debrief_rt = null;
+    
+    // Hide the PsychoJS canvas temporarily
+    psychoJS.window._renderer.view.style.display = 'none';
+    
+    // ---------- Styles ----------
+    var dbStyle = document.createElement('style');
+    dbStyle.id = 'debrief-style';
+    dbStyle.textContent =
+        '#debrief-card, #debrief-card * {box-sizing:border-box;}' +
+        '#debrief-card p, #debrief-card li {overflow-wrap:anywhere;word-break:break-word;}' +
+        '#debrief-card h3 {font-size:16px;margin:22px 0 8px 0;}' +
+        '#debrief-card p {margin:0;line-height:1.5;font-size:15px;}' +
+        '#debrief-card ul {margin:0;padding-left:22px;}' +
+        '#debrief-card li {line-height:1.5;font-size:15px;margin-bottom:8px;}' +
+        '#debrief-submit:disabled {opacity:0.4;cursor:not-allowed;}';
+    document.head.appendChild(dbStyle);
+    
+    // ---------- Overlay ----------
+    var overlay = document.createElement('div');
+    overlay.id = 'debrief-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
+    
+    var html = '<div id="debrief-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,700px);max-height:94vh;overflow-y:auto;">' +
+        '<h2 style="margin-top:0;">' + TEXT.title + '</h2>' +
+        '<p style="font-weight:bold;font-size:17px;">' + TEXT.thanks + '</p>';
+    
+    for (var i = 0; i < TEXT.sections.length; i++) {
+        html += '<h3>' + TEXT.sections[i][0] + '</h3><p>' + TEXT.sections[i][1] + '</p>';
+    }
+    
+    html += '<h3>' + TEXT.importantTitle + '</h3><ul>';
+    for (var j = 0; j < TEXT.bullets.length; j++) {
+        html += '<li>' + TEXT.bullets[j] + '</li>';
+    }
+    html += '</ul>' +
+        '<p id="debrief-status" style="margin-top:22px;font-size:14px;color:#aaa;text-align:center;">' + SAVE_MSG_WAIT + '</p>' +
+        '<button id="debrief-submit" disabled style="width:100%;padding:12px;margin-top:14px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + TEXT.button + '</button>' +
+        '</div>';
+    
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+    
+    // ---------- Helpers ----------
+    function withTimeout(promise, ms) {
+        return new Promise(function(resolve, reject) {
+            var timer = setTimeout(function() { reject(new Error('timeout')); }, ms);
+            promise.then(function(v) { clearTimeout(timer); resolve(v); },
+                         function(e) { clearTimeout(timer); reject(e); });
+        });
+    }
+    function wait(ms) {
+        return new Promise(function(resolve) { setTimeout(resolve, ms); });
+    }
+    
+    // ---------- Final save (up to 3 attempts, 20 s timeout each) ----------
+    var saveOk = false;
+    for (var attempt = 1; attempt <= 3 && !saveOk; attempt++) {
+        try {
+            // all finished entries + the entry that is still open
+            var rows = psychoJS.experiment._trialsData.slice();
+            var cur = psychoJS.experiment._currentTrialData;
+            if (cur && Object.keys(cur).length > 0) { rows.push(cur); }
+    
+            var res = await withTimeout(
+                saveToDataPipe(
+                    "participant_" + (participant_code || "UNKNOWN") + "_" + sessionTag + "_final.csv",
+                    convertToCSV(rows)
+                ),
+                20000
+            );
+            saveOk = (res !== false);
+        } catch (err) {
+            console.warn('Final save attempt ' + attempt + ' failed:', err);
+        }
+        if (!saveOk && attempt < 3) { await wait(1500 * attempt); }
+    }
+    
+    // ---------- Update status, enable button ----------
+    var statusEl = document.getElementById('debrief-status');
+    var btnEl = document.getElementById('debrief-submit');
+    statusEl.textContent = saveOk ? SAVE_MSG_OK : SAVE_MSG_FAIL;
+    statusEl.style.color = saveOk ? '#8fd18f' : '#ff8080';
+    btnEl.disabled = false;
+    
+    var dbStart = performance.now();
+    btnEl.addEventListener('click', function() {
+        debrief_rt = (performance.now() - dbStart) / 1000;
+        document.body.removeChild(overlay);
+        document.head.removeChild(dbStyle);
+        psychoJS.window._renderer.view.style.display = 'block';
+        debrief_done = true;
+    });
     psychoJS.experiment.addData('Exit.started', globalClock.getTime());
     ExitMaxDuration = null
     // keep track of which components have finished
     ExitComponents = [];
     ExitComponents.push(exit_message);
-    ExitComponents.push(key_resp_2);
     
     for (const thisComponent of ExitComponents)
       if ('status' in thisComponent)
@@ -5989,35 +6216,9 @@ function ExitRoutineEachFrame() {
     if (exit_message.status === PsychoJS.Status.STARTED) {
     }
     
-    
-    // *key_resp_2* updates
-    if (t >= 0.0 && key_resp_2.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      key_resp_2.tStart = t;  // (not accounting for frame time here)
-      key_resp_2.frameNStart = frameN;  // exact frame index
-      
-      // keyboard checking is just starting
-      psychoJS.window.callOnFlip(function() { key_resp_2.clock.reset(); });  // t=0 on next screen flip
-      psychoJS.window.callOnFlip(function() { key_resp_2.start(); }); // start on screen flip
-      psychoJS.window.callOnFlip(function() { key_resp_2.clearEvents(); });
-    }
-    
-    // if key_resp_2 is active this frame...
-    if (key_resp_2.status === PsychoJS.Status.STARTED) {
-      let theseKeys = key_resp_2.getKeys({
-        keyList: typeof 'space' === 'string' ? ['space'] : 'space', 
-        waitRelease: false
-      });
-      _key_resp_2_allKeys = _key_resp_2_allKeys.concat(theseKeys);
-      if (_key_resp_2_allKeys.length > 0) {
-        key_resp_2.keys = _key_resp_2_allKeys[_key_resp_2_allKeys.length - 1].name;  // just the last key pressed
-        key_resp_2.rt = _key_resp_2_allKeys[_key_resp_2_allKeys.length - 1].rt;
-        key_resp_2.duration = _key_resp_2_allKeys[_key_resp_2_allKeys.length - 1].duration;
-        // a response ends the routine
+    if (debrief_done) {
         continueRoutine = false;
-      }
     }
-    
     // check for quit (typically the Esc key)
     if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
       return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
@@ -6055,18 +6256,6 @@ function ExitRoutineEnd(snapshot) {
       }
     }
     psychoJS.experiment.addData('Exit.stopped', globalClock.getTime());
-    // update the trial handler
-    if (currentLoop instanceof MultiStairHandler) {
-      currentLoop.addResponse(key_resp_2.corr, level);
-    }
-    psychoJS.experiment.addData('key_resp_2.keys', key_resp_2.keys);
-    if (typeof key_resp_2.keys !== 'undefined') {  // we had a response
-        psychoJS.experiment.addData('key_resp_2.rt', key_resp_2.rt);
-        psychoJS.experiment.addData('key_resp_2.duration', key_resp_2.duration);
-        routineTimer.reset();
-        }
-    
-    key_resp_2.stop();
     // the Routine "Exit" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
