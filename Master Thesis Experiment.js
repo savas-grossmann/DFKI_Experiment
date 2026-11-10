@@ -122,6 +122,90 @@ async function saveToDataPipe(filename, csv) {
     return false;
 }
 
+
+// =============================================
+// SUPABASE CONFIGURATION
+// =============================================
+
+var SUPABASE_URL = "https://msirntwrwjuzgdbedxvy.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_9v_QmPRWGmHqb6SMyeGO6g_uYGPieRj";
+
+// =============================================
+// SAVE RESULTS TO SUPABASE
+// =============================================
+
+
+async function saveToSupabase(participantID, rows) {
+
+    if (!participantID || participantID === "UNKNOWN") {
+        console.error("Supabase save aborted: missing participant ID");
+        return false;
+    }
+
+    var payload = {
+        participant_id: participantID,
+        data: {
+            session_tag: sessionTag,
+            experiment: "bias",
+            rows: rows
+        }
+    };
+
+    var url = SUPABASE_URL +
+        "/rest/v1/results?on_conflict=participant_id";
+
+    for (var attempt = 1; attempt <= 3; attempt++) {
+
+        try {
+
+            var response = await fetch(url, {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    "apikey": SUPABASE_ANON_KEY,
+                    "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+                    "Prefer": "resolution=merge-duplicates,return=minimal"
+                },
+
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                console.log(
+                    "Supabase save successful:",
+                    participantID,
+                    "Rows:",
+                    rows.length
+                );
+                return true;
+            }
+
+            var errorText = await response.text();
+
+            console.error(
+                "Supabase save failed:",
+                response.status,
+                errorText
+            );
+
+        } catch (error) {
+
+            console.error("Supabase network error:", error);
+
+        }
+
+        if (attempt < 3) {
+            await new Promise(function(resolve) {
+                setTimeout(resolve, 1500 * attempt);
+            });
+        }
+    }
+
+    console.error("Supabase save failed after 3 attempts.");
+    return false;
+}
+
 window.startFacePrefetch = function() {
 
     var folders = [
@@ -4560,8 +4644,14 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
     
         var participantID = participant_code || "UNKNOWN";
         var sceneNum = (Scene_Loop.thisN !== undefined ? Scene_Loop.thisN : 0) + 1;
+    
         var filename = "participant_" + participantID + "_" + sessionTag + "_scene_" + sceneNum + ".csv";
-        saveToDataPipe(filename, convertToCSV(allRows));   // no await: don't block the next scene
+    
+        // Existing DataPipe save
+        saveToDataPipe(filename, convertToCSV(allRows));
+    
+        // Additional Supabase save
+        saveToSupabase(participantID, allRows);
     }
     // the Routine "Save_Interim_Results" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
@@ -6151,14 +6241,22 @@ function ExitRoutineBegin(snapshot) {
             var cur = psychoJS.experiment._currentTrialData;
             if (cur && Object.keys(cur).length > 0) { rows.push(cur); }
     
-            var res = await withTimeout(
+            var participantID = participant_code || "UNKNOWN";
+    
+            var pipeResult = await withTimeout(
                 saveToDataPipe(
-                    "participant_" + (participant_code || "UNKNOWN") + "_" + sessionTag + "_final.csv",
+                    "participant_" + participantID + "_" + sessionTag + "_final.csv",
                     convertToCSV(rows)
                 ),
                 20000
             );
-            saveOk = (res !== false);
+    
+            var supabaseResult = await withTimeout(
+                saveToSupabase(participantID, rows),
+                20000
+            );
+    
+            saveOk = (pipeResult === true && supabaseResult === true);
         } catch (err) {
             console.warn('Final save attempt ' + attempt + ' failed:', err);
         }
