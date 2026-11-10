@@ -135,6 +135,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_9v_QmPRWGmHqb6SMyeGO6g_uYGPieRj";
 // =============================================
 
 
+
 async function saveToSupabase(participantID, rows) {
 
     if (!participantID || participantID === "UNKNOWN") {
@@ -143,16 +144,13 @@ async function saveToSupabase(participantID, rows) {
     }
 
     var payload = {
-        participant_id: participantID,
-        data: {
-            session_tag: sessionTag,
-            experiment: "bias",
-            rows: rows
-        }
+        session_tag: sessionTag,
+        experiment: "bias",
+        rows: rows
     };
 
     var url = SUPABASE_URL +
-        "/rest/v1/results?on_conflict=participant_id";
+        "/rest/v1/rpc/save_experiment_result";
 
     for (var attempt = 1; attempt <= 3; attempt++) {
 
@@ -163,12 +161,13 @@ async function saveToSupabase(participantID, rows) {
 
                 headers: {
                     "Content-Type": "application/json",
-                    "apikey": SUPABASE_ANON_KEY,
-                    "Authorization": "Bearer " + SUPABASE_ANON_KEY,
-                    "Prefer": "resolution=merge-duplicates,return=minimal"
+                    "apikey": SUPABASE_ANON_KEY
                 },
 
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    p_participant_id: participantID,
+                    p_data: payload
+                })
             });
 
             if (response.ok) {
@@ -178,13 +177,14 @@ async function saveToSupabase(participantID, rows) {
                     "Rows:",
                     rows.length
                 );
+
                 return true;
             }
 
             var errorText = await response.text();
 
             console.error(
-                "Supabase save failed:",
+                "Supabase RPC save failed:",
                 response.status,
                 errorText
             );
@@ -6125,6 +6125,7 @@ function End_DemographicsRoutineEnd(snapshot) {
 var ExitMaxDurationReached;
 var debrief_done;
 var debrief_rt;
+var saveOk;
 var ExitMaxDuration;
 var ExitComponents;
 function ExitRoutineBegin(snapshot) {
@@ -6232,36 +6233,78 @@ function ExitRoutineBegin(snapshot) {
         return new Promise(function(resolve) { setTimeout(resolve, ms); });
     }
     
-    // ---------- Final save (up to 3 attempts, 20 s timeout each) ----------
-    var saveOk = false;
-    for (var attempt = 1; attempt <= 3 && !saveOk; attempt++) {
-        try {
-            // all finished entries + the entry that is still open
-            var rows = psychoJS.experiment._trialsData.slice();
-            var cur = psychoJS.experiment._currentTrialData;
-            if (cur && Object.keys(cur).length > 0) { rows.push(cur); }
     
-            var participantID = participant_code || "UNKNOWN";
+    // ---------- Final save: retry each destination independently ----------
     
-            var pipeResult = await withTimeout(
-                saveToDataPipe(
-                    "participant_" + participantID + "_" + sessionTag + "_final.csv",
-                    convertToCSV(rows)
-                ),
-                20000
-            );
+    var pipeSaved = false;
+    var supabaseSaved = false;
     
-            var supabaseResult = await withTimeout(
-                saveToSupabase(participantID, rows),
-                20000
-            );
+    var participantID = participant_code || "UNKNOWN";
     
-            saveOk = (pipeResult === true && supabaseResult === true);
-        } catch (err) {
-            console.warn('Final save attempt ' + attempt + ' failed:', err);
-        }
-        if (!saveOk && attempt < 3) { await wait(1500 * attempt); }
+    // Snapshot the experiment data once
+    var rows = psychoJS.experiment._trialsData.slice();
+    var cur = psychoJS.experiment._currentTrialData;
+    
+    if (cur && Object.keys(cur).length > 0) {
+        rows.push(cur);
     }
+    
+    var csvData = convertToCSV(rows);
+    var filename =
+        "participant_" + participantID + "_" + sessionTag + "_final.csv";
+    
+    // Up to 3 attempts per destination
+    for (var attempt = 1; attempt <= 3; attempt++) {
+    
+        // DataPipe: only retry if it has not succeeded
+        if (!pipeSaved) {
+            try {
+                pipeSaved = await withTimeout(
+                    saveToDataPipe(filename, csvData),
+                    20000
+                ) === true;
+    
+                console.log("DataPipe final save:", pipeSaved ? "SUCCESS" : "FAILED");
+    
+            } catch (err) {
+                console.warn("DataPipe save attempt " + attempt + " failed:", err);
+            }
+        }
+    
+        // Supabase: only retry if it has not succeeded
+        if (!supabaseSaved) {
+            try {
+                supabaseSaved = await withTimeout(
+                    saveToSupabase(participantID, rows),
+                    20000
+                ) === true;
+    
+                console.log("Supabase final save:", supabaseSaved ? "SUCCESS" : "FAILED");
+    
+            } catch (err) {
+                console.warn("Supabase save attempt " + attempt + " failed:", err);
+            }
+        }
+    
+        // Both succeeded: no more attempts needed
+        if (pipeSaved && supabaseSaved) {
+            break;
+        }
+    
+        if (attempt < 3) {
+            await wait(1500 * attempt);
+        }
+    }
+    
+    // Overall result
+    saveOk = pipeSaved && supabaseSaved;
+    
+    console.log("Final save results:", {
+        dataPipe: pipeSaved,
+        supabase: supabaseSaved,
+        overall: saveOk
+    });
+    
     
     // ---------- Update status, enable button ----------
     var statusEl = document.getElementById('debrief-status');
