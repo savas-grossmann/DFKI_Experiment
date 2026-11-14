@@ -9,14 +9,33 @@ let expInfo = {};
 let PILOTING = util.getUrlParameters().has('__pilotToken');
 
 // Start code blocks for 'Before Experiment'
-var consent_given = false;
-var consent_declined = false;
-var consent_done = false;
+// Run 'Before Experiment' code from choose_language_code
+//language options
+var lang = '';
+var lang_done = false;
+var lang_rt = null;
+// ?SONA=TRUE (or 1 / yes) in the study URL turns the Sona parts on. Name and value are case-insensitive.
 
+function urlFlag(name) {
+    var found = false;
+    var params = new URLSearchParams(window.location.search);
+    params.forEach(function(value, key) {
+        if (key.toLowerCase() === name.toLowerCase()) {
+            var v = value.toLowerCase();
+            found = (v === 'true' || v === '1' || v === 'yes');
+        }
+    });
+    return found;
+}
+
+var use_sona = urlFlag('sona');
 // Consent
 var consent_given = false;
 var consent_declined = false;
 var consent_done = false;
+var consent_1 = false;
+var consent_2 = false;
+var consent_rt = null;
 
 // Participant code
 var participant_code = '';
@@ -40,6 +59,58 @@ var demo_screenout_reason = '';
 var demo_ethnicity = '';
 var demo_country_code = '';
 var demo_country_name = '';
+var TX = {
+    en: {
+        // face description routine
+        task_description: 'Give a short description of the face of the person that you saw. Write at least 50 characters to proceed.',
+
+        // ranking routine
+        ranking_bar_left: '◄ Most likely',
+        ranking_bar_right: 'Least likely ►',
+        ranking_prompt: 'Rank the faces according to how likely they match the scene.',
+
+        // generic
+        continue_hint: 'Press ENTER to continue',
+        text_continue_triple: 'Press ENTER to continue',
+        finish_ranking_text: 'Press ENTER to continue',        
+        desc_hint: 'Press ENTER to continue ({n}/at least 50 characters)'
+    },
+    de: {
+        task_description: 'Beschreiben Sie kurz das Gesicht der Person, die Sie gesehen haben. Schreiben Sie mindestens 50 Zeichen, um fortzufahren.',
+
+        ranking_bar_left: '◄ Am wahrscheinlichsten',
+        ranking_bar_right: 'Am unwahrscheinlichsten ►',
+        ranking_prompt: 'Bringen Sie die Gesichter in eine Rangfolge, wie wahrscheinlich sie zur Szene passen.',
+
+        continue_hint: 'Drücken Sie ENTER, um fortzufahren',
+        text_continue_triple: 'Drücken Sie ENTER, um fortzufahren',
+        finish_ranking_text: 'Drücken Sie ENTER, um fortzufahren',
+        desc_hint: 'Drücken Sie ENTER, um fortzufahren ({n}/mindestens 50 Zeichen)'
+    }
+};
+
+// Translate by key, for texts built in code
+
+function tr(key) {
+    var l = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
+    return TX[l][key];
+}
+
+// Translate whole components: applyLang(face_prompt, label_most_likely, ...)
+// The component's name in Builder is used as the dictionary key.
+
+function applyLang() {
+    for (var i = 0; i < arguments.length; i++) {
+        var c = arguments[i];
+        var key = c.name || c._name;
+        var txt = key ? tr(key) : undefined;
+        if (txt === undefined) {
+            console.warn('No translation for component: ' + key);
+            continue;
+        }
+        c.setText(txt);
+    }
+}
 // Run 'Before Experiment' code from snap_pictures
 
 function distanceCalc(pos1, pos2) {
@@ -271,6 +342,9 @@ flowScheduler.add(experimentInit);
 flowScheduler.add(Quick_ModeRoutineBegin());
 flowScheduler.add(Quick_ModeRoutineEachFrame());
 flowScheduler.add(Quick_ModeRoutineEnd());
+flowScheduler.add(Choose_LanguageRoutineBegin());
+flowScheduler.add(Choose_LanguageRoutineEachFrame());
+flowScheduler.add(Choose_LanguageRoutineEnd());
 flowScheduler.add(Check_ConsentRoutineBegin());
 flowScheduler.add(Check_ConsentRoutineEachFrame());
 flowScheduler.add(Check_ConsentRoutineEnd());
@@ -402,6 +476,8 @@ var quickModeChoiceDone;
 var faceRankingLoopNum;
 var participant_code;
 var sceneImagesReady;
+var Choose_LanguageClock;
+var text_placeholder8;
 var Check_ConsentClock;
 var text_placeholder2;
 var Participant_CodeClock;
@@ -450,6 +526,7 @@ var mouse;
 var timer_text;
 var finish_ranking_key;
 var finish_ranking_text;
+var ranking_description;
 var Save_Interim_ResultsClock;
 var IAT_instructionsClock;
 var instructs_text;
@@ -602,6 +679,142 @@ async function experimentInit() {
       .addEventListener('click', function () {
           finishQuickModeSelection(false);
       });
+  // Initialize components for Routine "Choose_Language"
+  Choose_LanguageClock = new util.Clock();
+  text_placeholder8 = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'text_placeholder8',
+    text: '',
+    font: 'Arial',
+    units: undefined, 
+    pos: [0, 0], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: 0.0,
+    depth: 0.0 
+  });
+  
+  if (!window.fsGuard) {
+      window.fsGuard = {active: true, wasFull: false, exits: 0, outMs: 0, outSince: null, overlay: null};
+      var FS = window.fsGuard;
+  
+      var FS_DE = {
+          title: 'Vollbildmodus erforderlich',
+          text: 'Dieses Experiment muss im Vollbildmodus durchgeführt werden. Bitte verlassen Sie ihn nicht.',
+          back: 'Zum Vollbildmodus zurückkehren',
+          leave: 'Experiment verlassen',
+          bye: 'Das Experiment wird nun geschlossen.'
+      };
+      var FS_EN = {
+          title: 'Full screen mode required',
+          text: 'This experiment must be done in full screen mode. Please do not leave it.',
+          back: 'Return to full screen',
+          leave: 'Leave experiment',
+          bye: 'The experiment will now close.'
+      };
+  
+      // Before a language is chosen, show both languages
+      function fsTexts() {
+          var l = (typeof lang !== 'undefined') ? lang : '';
+          return (l === 'de') ? [FS_DE] : ((l === 'en') ? [FS_EN] : [FS_DE, FS_EN]);
+      }
+      function fsJoin(field, sep) {
+          var t = fsTexts(), out = [];
+          for (var i = 0; i < t.length; i++) { out.push(t[i][field]); }
+          return out.join(sep);
+      }
+  
+      function fsBlockKey(e) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+      }
+  
+      function fsShow() {
+          if (FS.overlay) { return; }
+          FS.outSince = performance.now();
+  
+          var ov = document.createElement('div');
+          ov.id = 'fs-overlay';
+          ov.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:10001;padding:10px;box-sizing:border-box;';
+          ov.innerHTML =
+              '<div id="fs-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,520px);max-height:94vh;overflow-y:auto;box-sizing:border-box;">' +
+                '<h2 style="margin-top:0;">' + fsJoin('title', ' / ') + '</h2>' +
+                '<p style="line-height:1.5;overflow-wrap:anywhere;">' + fsJoin('text', '</p><p style="line-height:1.5;overflow-wrap:anywhere;">') + '</p>' +
+                '<button id="fs-back" style="width:100%;padding:12px;margin-top:18px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + fsJoin('back', ' / ') + '</button>' +
+                '<button id="fs-leave" style="width:100%;padding:12px;margin-top:10px;background:#444;color:white;border:none;border-radius:4px;font-size:14px;cursor:pointer;">' + fsJoin('leave', ' / ') + '</button>' +
+              '</div>';
+          document.body.appendChild(ov);
+          FS.overlay = ov;
+  
+          // keep key presses away from the experiment while the overlay is open
+          window.addEventListener('keydown', fsBlockKey, true);
+          window.addEventListener('keyup', fsBlockKey, true);
+  
+          document.getElementById('fs-back').addEventListener('click', function() {
+              var p = document.documentElement.requestFullscreen();
+              if (p && p.catch) { p.catch(function() {}); }
+          });
+  
+          document.getElementById('fs-leave').addEventListener('click', function() {
+              FS.active = false;
+              document.getElementById('fs-card').innerHTML =
+                  '<h2 style="margin-top:0;">' + fsJoin('bye', ' / ') + '</h2>';
+              setTimeout(function() {
+                  psychoJS.quit({message: 'Participant left full screen mode and chose to leave.', isCompleted: false});
+              }, 2500);
+          });
+      }
+  
+      function fsHide() {
+          if (!FS.overlay) { return; }
+          window.removeEventListener('keydown', fsBlockKey, true);
+          window.removeEventListener('keyup', fsBlockKey, true);
+          document.body.removeChild(FS.overlay);
+          FS.overlay = null;
+          FS.outMs += performance.now() - FS.outSince;
+          // cumulative values, written into the current data row (use the max in the analysis)
+          psychoJS.experiment.addData('fs_exits', FS.exits);
+          psychoJS.experiment.addData('fs_out_sec', Math.round(FS.outMs) / 1000);
+      }
+  
+      function fsLockEscape() {
+          // Chrome/Edge only: Escape must then be held to leave full screen
+          if (navigator.keyboard && navigator.keyboard.lock) {
+              navigator.keyboard.lock(['Escape']).catch(function() {});
+          }
+      }
+  
+      FS.disable = function() {
+          FS.active = false;
+          fsHide();
+          try {
+              if (navigator.keyboard && navigator.keyboard.unlock) { navigator.keyboard.unlock(); }
+          } catch (e) {}
+      };
+  
+      document.addEventListener('fullscreenchange', function() {
+          if (document.fullscreenElement) {
+              FS.wasFull = true;
+              fsLockEscape();
+              fsHide();
+          } else if (FS.wasFull && FS.active) {
+              FS.exits++;
+              fsShow();
+          }
+      });
+  
+      // Already in full screen when this code runs?
+      if (document.fullscreenElement) {
+          FS.wasFull = true;
+          fsLockEscape();
+      }
+  
+      // Normal quits (consent declined, screen-out, end of experiment) must not trigger the message
+      var fsOrigQuit = psychoJS.quit.bind(psychoJS);
+      psychoJS.quit = function(options) {
+          FS.active = false;
+          return fsOrigQuit(options);
+      };
+  }
   // Initialize components for Routine "Check_Consent"
   Check_ConsentClock = new util.Clock();
   text_placeholder2 = new visual.TextStim({
@@ -669,7 +882,7 @@ async function experimentInit() {
   wait_text = new visual.TextStim({
     win: psychoJS.window,
     name: 'wait_text',
-    text: 'Please wait a moment while the experiment is being prepared. You will be forwarded automatically.',
+    text: 'Please wait a moment while the experiment is being prepared. You will be forwarded automatically.\n\nBitte warten Sie einen Moment während das Experiment vorbereitet wird. Sie werden automatisch weitergeleitet.',
     font: 'Arial',
     units: undefined, 
     pos: [0, 0], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
@@ -821,7 +1034,7 @@ async function experimentInit() {
   task_description = new visual.TextStim({
     win: psychoJS.window,
     name: 'task_description',
-    text: 'Describe the face of the person you saw in the previous scene.',
+    text: 'Give a short description of the face of the person that you saw. Write atleast 50 characters to proceed.',
     font: 'Arial',
     units: undefined, 
     pos: [0, 0.3], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
@@ -875,7 +1088,7 @@ async function experimentInit() {
   wait_text_2 = new visual.TextStim({
     win: psychoJS.window,
     name: 'wait_text_2',
-    text: 'Loading Faces...',
+    text: 'Loading Faces...\nLade Gesichter...',
     font: 'Arial',
     units: undefined, 
     pos: [0, 0], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
@@ -1113,7 +1326,19 @@ async function experimentInit() {
     pos: [(- 0.1), (- 0.35)], draggable: false, height: 0.025,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
-    depth: -21.0 
+    depth: -20.0 
+  });
+  
+  ranking_description = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'ranking_description',
+    text: 'Please sort these faces from least to most likely to be in the scene you saw before.',
+    font: 'Arial',
+    units: undefined, 
+    pos: [(- 0.1), 0.5], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: undefined,
+    depth: -22.0 
   });
   
   // Initialize components for Routine "Save_Interim_Results"
@@ -1509,8 +1734,213 @@ function Quick_ModeRoutineEnd(snapshot) {
 }
 
 
+var Choose_LanguageMaxDurationReached;
+var lang_done;
+var lang_rt;
+var lang;
+var Choose_LanguageMaxDuration;
+var Choose_LanguageComponents;
+function Choose_LanguageRoutineBegin(snapshot) {
+  return async function () {
+    TrialHandler.fromSnapshot(snapshot); // ensure that .thisN vals are up to date
+    
+    //--- Prepare to start Routine 'Choose_Language' ---
+    t = 0;
+    frameN = -1;
+    continueRoutine = true; // until we're told otherwise
+    // keep track of whether this Routine was forcibly ended
+    routineForceEnded = false;
+    Choose_LanguageClock.reset();
+    routineTimer.reset();
+    Choose_LanguageMaxDurationReached = false;
+    // update component parameters for each repeat
+    // ---------- Reset globals ----------
+    lang_done = false;
+    lang_rt = null;
+    
+    // Optional: preselect the language via URL, e.g. https://.../index.html?lang=de
+    var urlLang = new URLSearchParams(window.location.search).get('lang');
+    
+    if (urlLang === 'de' || urlLang === 'en') {
+        lang = urlLang;
+        continueRoutine = false;
+        lang_done = true;
+    } else if (quickMode) {
+        lang = 'en';
+        continueRoutine = false;
+        lang_done = true;
+    } else {
+        // Hide the PsychoJS canvas temporarily
+        psychoJS.window._renderer.view.style.display = 'none';
+    
+        // ---------- Styles ----------
+        var lgStyle = document.createElement('style');
+        lgStyle.id = 'lang-style';
+        lgStyle.textContent =
+            '#lang-card, #lang-card * {box-sizing:border-box;}' +
+            '#lang-card p {margin:0;line-height:1.5;font-size:15px;overflow-wrap:anywhere;word-break:break-word;}' +
+            '#lang-card .lang-row {display:flex;gap:16px;margin-top:24px;flex-wrap:wrap;}' +
+            '#lang-card .lang-opt {flex:1 1 180px;padding:22px 12px;background:#2c2c2c;color:white;border:2px solid #444;border-radius:6px;font-size:20px;font-family:Arial;cursor:pointer;}' +
+            '#lang-card .lang-opt:hover {background:#383838;}' +
+            '#lang-card .lang-opt.selected {border-color:white;background:#3d3d3d;font-weight:bold;}' +
+            '#lang-submit:disabled {opacity:0.4;cursor:not-allowed;}';
+        document.head.appendChild(lgStyle);
+    
+        // ---------- Overlay ----------
+        var overlay = document.createElement('div');
+        overlay.id = 'lang-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
+    
+        overlay.innerHTML =
+            '<div id="lang-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,560px);max-height:94vh;overflow-y:auto;">' +
+              '<h2 style="margin-top:0;">Language / Sprache</h2>' +
+              '<p>Please select your language.</p>' +
+              '<p style="margin-top:4px;">Bitte wählen Sie eine Sprache.</p>' +
+              '<div class="lang-row">' +
+                '<button class="lang-opt" data-lang="de">Deutsch</button>' +
+                '<button class="lang-opt" data-lang="en">English</button>' +
+              '</div>' +
+              '<button id="lang-submit" disabled style="width:100%;padding:12px;margin-top:28px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue / Weiter</button>' +
+            '</div>';
+    
+        document.body.appendChild(overlay);
+    
+        // ---------- Selection logic ----------
+        var chosen = '';
+        var lgStart = performance.now();
+        var optBtns = overlay.querySelectorAll('.lang-opt');
+        var submitBtn = document.getElementById('lang-submit');
+    
+        for (var b = 0; b < optBtns.length; b++) {
+            optBtns[b].addEventListener('click', function() {
+                for (var c = 0; c < optBtns.length; c++) { optBtns[c].classList.remove('selected'); }
+                this.classList.add('selected');
+                chosen = this.getAttribute('data-lang');
+                submitBtn.disabled = false;
+                submitBtn.textContent = (chosen === 'de') ? 'Weiter' : 'Continue';
+            });
+        }
+    
+        submitBtn.addEventListener('click', function() {
+            if (!chosen) { return; }
+            lang = chosen;
+            lang_rt = (performance.now() - lgStart) / 1000;
+    
+            // clean up
+            document.body.removeChild(overlay);
+            document.head.removeChild(lgStyle);
+            psychoJS.window._renderer.view.style.display = 'block';
+            lang_done = true;
+        });
+    }
+    psychoJS.experiment.addData('Choose_Language.started', globalClock.getTime());
+    Choose_LanguageMaxDuration = null
+    // keep track of which components have finished
+    Choose_LanguageComponents = [];
+    Choose_LanguageComponents.push(text_placeholder8);
+    
+    Choose_LanguageComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent)
+        thisComponent.status = PsychoJS.Status.NOT_STARTED;
+       });
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+function Choose_LanguageRoutineEachFrame() {
+  return async function () {
+    //--- Loop for each frame of Routine 'Choose_Language' ---
+    // get current time
+    t = Choose_LanguageClock.getTime();
+    frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
+    // update/draw components on each frame
+    
+    // *text_placeholder8* updates
+    if (t >= 0.0 && text_placeholder8.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      text_placeholder8.tStart = t;  // (not accounting for frame time here)
+      text_placeholder8.frameNStart = frameN;  // exact frame index
+      
+      text_placeholder8.setAutoDraw(true);
+    }
+    
+    
+    // if text_placeholder8 is active this frame...
+    if (text_placeholder8.status === PsychoJS.Status.STARTED) {
+    }
+    
+    if (lang_done) {
+        continueRoutine = false;
+    }
+    // check for quit (typically the Esc key)
+    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
+      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
+    }
+    
+    // check if the Routine should terminate
+    if (!continueRoutine) {  // a component has requested a forced-end of Routine
+      routineForceEnded = true;
+      return Scheduler.Event.NEXT;
+    }
+    
+    continueRoutine = false;  // reverts to True if at least one component still running
+    Choose_LanguageComponents.forEach( function(thisComponent) {
+      if ('status' in thisComponent && thisComponent.status !== PsychoJS.Status.FINISHED) {
+        continueRoutine = true;
+      }
+    });
+    
+    // refresh the screen if continuing
+    if (continueRoutine) {
+      return Scheduler.Event.FLIP_REPEAT;
+    } else {
+      return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+function Choose_LanguageRoutineEnd(snapshot) {
+  return async function () {
+    //--- Ending Routine 'Choose_Language' ---
+    Choose_LanguageComponents.forEach( function(thisComponent) {
+      if (typeof thisComponent.setAutoDraw === 'function') {
+        thisComponent.setAutoDraw(false);
+      }
+    });
+    psychoJS.experiment.addData('Choose_Language.stopped', globalClock.getTime());
+    if (lang !== 'de' && lang !== 'en') { lang = 'en'; }   // fallback
+    
+    psychoJS.experiment.addData('language', lang);
+    psychoJS.experiment.addData('language_rt', lang_rt);
+    
+    // safety cleanup in case the routine ended early
+    var lgOv = document.getElementById('lang-overlay');
+    if (lgOv) { document.body.removeChild(lgOv); }
+    var lgSt = document.getElementById('lang-style');
+    if (lgSt) { document.head.removeChild(lgSt); }
+    psychoJS.window._renderer.view.style.display = 'block';
+    psychoJS.experiment.addData('sona_participant', use_sona);
+    // the Routine "Choose_Language" was not non-slip safe, so reset the non-slip timer
+    routineTimer.reset();
+    
+    // Routines running outside a loop should always advance the datafile row
+    if (currentLoop === psychoJS.experiment) {
+      psychoJS.experiment.nextEntry(snapshot);
+    }
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
 var Check_ConsentMaxDurationReached;
+var consent_given;
+var consent_declined;
 var consent_done;
+var consent_1;
+var consent_2;
+var consent_rt;
 var Check_ConsentMaxDuration;
 var Check_ConsentComponents;
 function Check_ConsentRoutineBegin(snapshot) {
@@ -1527,6 +1957,233 @@ function Check_ConsentRoutineBegin(snapshot) {
     routineTimer.reset();
     Check_ConsentMaxDurationReached = false;
     // update component parameters for each repeat
+    // ---------- Settings (adjust here) ----------
+    var PROJECT_TITLE = '[PROJECT TITLE – Whats the exact title?]';
+    var PROJECT_ID = '1152';
+    var SHOW_SONA_PAGE = use_sona;
+    
+    var LINKS = {
+        dsb: 'https://www.fernuni-hagen.de/universitaet/themen/datenschutz.shtml',
+        contact: 'https://www.fernuni-hagen.de/service/kontakt.shtml',
+        rights: 'https://www.fernuni-hagen.de/service/datenschutz.shtml#rechte',
+        sona: 'https://fernuni-hagen.sona-systems.com',
+        sonaInfo: 'https://www.fernuni-hagen.de/psychologie/forschung/sona_teilnahme.shtml'
+    };
+    
+    function lk(url, label) {
+        return '<a href="' + url + '" target="_blank" rel="noopener" style="color:#9cc9ff;">' + label + '</a>';
+    }
+    
+    var L = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
+    
+    // ---------- German texts ----------
+    var TEXT_DE = {
+        title: 'Einwilligungserklärung',
+        headRows: [
+            ['Projekttitel', PROJECT_TITLE],
+            ['Projekt-ID', PROJECT_ID],
+            ['Lehrgebiet', 'Psychologische Methodenlehre und Evaluation'],
+            ['Projektverantwortliche Person', 'Dr. Marleen Stelter']
+        ],
+        greeting: 'Liebe Teilnehmende,',
+        intro1: [
+            'Diese Studie untersucht, wie unterschiedliche Kontextinformationen die Wahrnehmung und Bewertung von Gesichtern beeinflussen. Ihre Antworten werden anonymisiert, zu wissenschaftlichen Zwecken verwendet und können in wissenschaftlichen Publikationen verwendet werden.'
+        ],
+        doTitle: 'Was Sie tun werden:',
+        doList: [
+            'Dieses Informationsblatt lesen und Ihre Einwilligung erteilen',
+            'Gesichtsbilder zusammen mit Kontextinformationen bewerten und in eine Rangfolge bringen',
+            'Einen kurzen demografischen Fragebogen ausfüllen',
+            'Eine kurze Abschlussinformation (Debriefing) lesen'
+        ],
+        afterList: [
+            'Diese Studie dauert etwa 60 Minuten.',
+            'Die Teilnahme ist freiwillig. Sie können einzelne Aufgaben überspringen oder die Studie jederzeit ohne Angabe von Gründen und ohne Nachteile abbrechen.',
+            'Ihre Daten werden vertraulich behandelt und ausschließlich für wissenschaftliche Forschungszwecke verwendet.'
+        ],
+        intro2: [
+            'Für die Teilnahme ist es notwendig, dass Sie Ihre Zustimmungserklärung zur Datenerhebung und -verarbeitung durch den entsprechenden Klick abgeben.',
+            'Nachfolgend wird Ihnen die Möglichkeit gegeben, sich ausführlich über die Datenerhebung und -verarbeitung zu informieren und eine bewusste Entscheidung über Ihre Zustimmung zu treffen. Zweck der Erhebung und Verarbeitung personenbezogener Daten ist das o.g. Forschungsvorhaben bzw. Serviceangebot sowie die Verwaltung der Teilnahmeincentives.',
+            'Sollten Sie Fragen zu dieser Studie und zur Datenverarbeitung haben, wenden Sie sich bitte an die unten genannten projektverantwortlichen Personen.',
+            'Für allgemeine Fragen zum Datenschutz wenden Sie sich bitte an den ' + lk(LINKS.dsb, 'Datenschutzbeauftragten der FernUniversität') + '.'
+        ],
+        contacts: 'Sarah Boidoglou &amp; Savas Großmann (Studienleitung) &mdash; sarah.boidoglou@dfki.de, savas.grossmann@dfki.de<br>' +
+                  'Mansi Sharma &amp; Philipp Müller (Betreuung) &mdash; mansi.sharma@dfki.de, phmueller@is.mpg.de<br>' +
+                  'DFKI GmbH, Kesselhaus in der Lanolinfabrik, Salzufer 15/16, 10587 Berlin, Deutschland',
+        dpMain: 'Weiterführende Informationen zum Datenschutz',
+        dpSections: [
+            ['Übergeordnete Kontaktmöglichkeit zur Datenverantwortung', [
+                'Die Verantwortliche im Sinne der EU-Datenschutz-Grundverordnung und der jeweils einschlägigen nationalen Datenschutzgesetze der Mitgliedsstaaten sowie sonstiger datenschutzrechtlicher Bestimmungen („Stelle, die über die Zwecke und Mittel der Verarbeitung personenbezogener Daten entscheidet“) ist die:',
+                '<b>FernUniversität in Hagen</b><br>Universitätsstraße 47<br>58097 Hagen',
+                'Körperschaft des Öffentlichen Rechts<br>vertreten durch den Rektor',
+                'E-Mail: rektor@fernuni-hagen.de<br>' + lk(LINKS.contact, LINKS.contact)
+            ]],
+            ['Dauer der Datenaufbewahrung', [
+                'Alle Rohdaten werden so lange aufbewahrt, wie Sie für den Forschungszweck oder die Aufrechterhaltung des oben/eingangs genannten Serviceangebots benötigt werden. Eine anschließende, eventuelle Weitergabe zur Einhaltung guter wissenschaftlicher Praxis (z.B. durch eine OpenScience Initiative) erfolgt ausschließlich in einem Zustand, der durch Datenanonymisierung/Datenaggregierung ohne unverhältnismäßigen Aufwand keine Rückschlüsse auf einzelne Personen ermöglicht.'
+            ]],
+            ['Folgende personenbezogene Daten können im Verlauf der Teilnahme erhoben werden', [
+                '<b>Im Rahmen des Forschungszwecks:</b><br>Ausschließlich jene Daten, die für den Forschungszweck unbedingt notwendig sind (z.B. soziodemografische Daten) sowie ggf. Pseudonymisierungscodes zur Verknüpfung mehrerer Messzeitpunkte.',
+                '<b>Zum Zweck der Erstellung der Teilnahmebescheinigung und Gutschrift von Teilnahmeincentives:</b><br>Zur Verifizierung der Teilnahme wird ein Pseudonym genutzt und mit den Rahmendaten des Projektes (Kennung, Titel, Lehrgebiet, Anzahl der durch die Teilnahme abgeleisteten Versuchspersonenstunden) in Zusammenhang gebracht, um die korrekte Gutschrift/Bescheinigung vorzunehmen. Wird nicht erhoben, wenn das entsprechende Incentivierungsverfahren nicht genutzt wird.',
+                '<b>Zum Zweck der weiteren Incentivierung:</b><br>Kontaktdaten, um vergebene Incentives auszuhändigen (z.B. E-Mail-Adresse). Wird nicht erhoben, wenn das entsprechende Incentivierungsverfahren nicht genutzt wird.',
+                'Sollten darüber hinausgehende personenbezogene Daten gesammelt und verwendet werden, werden Sie auf den nachfolgenden Seiten gesondert darauf hingewiesen und um Zustimmung gebeten.',
+                'Alle personenbezogenen Daten werden ausschließlich für wissenschaftliche Zwecke oder für Zwecke der Gutschrift von Teilnahmeincentives genutzt. Alle personenbezogenen Daten werden immer so früh, wie es der Erhebungszweck erlaubt, anonymisiert/pseudonymisiert/aggregiert/gelöscht und ausschließlich für den jeweiligen Zweck verarbeitet.'
+            ]],
+            ['Folgende personenbezogene Daten besonderer Kategorien nach Art. 9 DSGVO werden erhoben und verarbeitet', [
+                'Keine personenbezogenen Daten besonderer Kategorien nach Art. 9 DSGVO werden verarbeitet.'
+            ]],
+            ['Rechtliche Grundlage für die Datenverarbeitung', [
+                'Art. 6, Abs. 1, lit. a DSGVO und/oder Art. 6, Abs. 1, lit. e DSGVO mit Art. 17 DSG NRW.'
+            ]],
+            ['Empfänger von personenbezogenen Daten', [
+                'Die auf der Startseite des Forschungsprojekts genannten, projektverantwortlichen Kontaktpersonen sowie die am Forschungsprojekt beteiligten Wissenschaftler*innen. Bei Mitwirkung des Forschungssupport-Teams der Fakultät für Psychologie erhält auch das lokale, fakultätsinterne Admin-Team (questionpro-admin@fernuni-hagen.de) zweckgebunden Zugriff.'
+            ]],
+            ['Informationen zum Datentransfer', [
+                'Eine Übermittlung von personenbezogenen Daten an ein Drittland oder eine internationale Organisation außerhalb des Anwendungsbereichs der DSGVO ist nicht vorgesehen. Im Rahmen der Einhaltung guter wissenschaftlicher Praxis (OpenScience Initiative) besteht die Möglichkeit, dass Ihre Daten in einem Zustand, der keine Rückschlüsse auf einzelne Personen ermöglicht (durch Datenanonymisierung/Datenaggregierung), veröffentlicht werden.'
+            ]],
+            ['Rechteinformationen', [
+                'Die Ihnen durch die Datenschutz-Grundverordnung der Europäischen Union zustehenden Rechte entnehmen Sie bitte folgendem Link:<br>' + lk(LINKS.rights, 'Rechteinformationen, Absatz V. Rechte der betroffenen Person'),
+                'Sofern Ihre Teilnahme identifizierbar ist, haben Sie das Recht, Ihre Einwilligung zur Datenerhebung und -verarbeitung jederzeit für die Zukunft zu widerrufen. Bitte wenden Sie sich dazu per E-Mail an die auf dieser Seite genannten, projektverantwortlichen Kontaktpersonen.'
+            ]],
+            ['Behördlich bestellte Datenschutzbeauftragte', [
+                '<b>Postanschrift:</b><br>Datenschutzbeauftragter der FernUniversität in Hagen<br>58084',
+                '<b>Hausanschrift:</b><br>Universitätsstraße 27<br>58097 Hagen',
+                'Tel.: 02331 987 - 2511<br>E-Mail: Datenschutzbeauftragter@FernUni-Hagen.de'
+            ]]
+        ],
+        agreeText: 'Mit Ihrer Zustimmung bestätigen Sie, dass Sie diese Informationen gelesen und verstanden haben und freiwillig an dieser Studie teilnehmen.',
+        check1: 'Ich erteile hiermit meine datenschutzrechtliche Einwilligung entsprechend der hier bereitgestellten Informationen.',
+        check2: 'Ich erteile hiermit meine Einwilligung, dass meine Daten für die o.g. wissenschaftlichen Zwecke genutzt werden.',
+        decline: 'Ich stimme nicht zu',
+        next: 'Weiter',
+        declineTitle: 'Vielen Dank',
+        declineText: 'Sie haben sich gegen eine Teilnahme entschieden. Das Experiment wird nun geschlossen.',
+        sona: {
+            title: 'Bitte unbedingt durchlesen!',
+            paras: [
+                'Teilnahmeincentives (inklusive Versuchspersonenstundenbescheinigungen) für diese Teilnahme werden über die Teilnahmeverwaltungsplattform der Fakultät für Psychologie (' + lk(LINKS.sona, 'Sona Systems') + ') gutgeschrieben.',
+                'Durch die Nutzung von Sona Systems ist es möglich, Incentives für Teilnahmen zu vergeben, ohne Personendaten/Matrikelnummer der Teilnehmenden abfragen zu müssen.',
+                'Für die Gutschrift der Teilnahmeincentives ist es notwendig, dass Sie sich in Sona Systems zur Teilnahme an dieser Studie anmelden bzw. angemeldet haben und anschließend Ihre Teilnahme entweder über den Teilnahmelink in Sona Systems (oder über den von den Forschenden in Sona Systems in den Details zur Studie explizit erläuterten, anderen Weg) beginnen.',
+                'Dies gilt sowohl für FernUni-Studierende als auch für externe Teilnehmende, die eine Gutschrift der Teilnahmeincentives für die Teilnahme an dieser Studie erhalten möchten.',
+                'Details zu Sona Systems finden Sie auf den ' + lk(LINKS.sonaInfo, 'Sona-Informationsseiten für Teilnehmende') + '.',
+                'Teilnahmeincentives werden Ihnen, wie in den Studieninformationen dieser Studie beschrieben, gutgeschrieben.',
+                'Bitte achten Sie unbedingt darauf, die Teilnahme vollständig zu beenden und am Ende auf <b>„Teilnahme abschließen“</b> zu klicken, um erworbene Teilnahmeincentives zu erhalten.',
+                '<b>Andernfalls kann keine Ausstellung der Teilnahmeincentives erfolgen.</b>'
+            ],
+            button: 'Verstanden, weiter'
+        }
+    };
+    
+    // ---------- English texts ----------
+    var TEXT_EN = {
+        title: 'Informed Consent',
+        headRows: [
+            ['Project title', PROJECT_TITLE],
+            ['Project ID', PROJECT_ID],
+            ['Subject area', 'Psychological Methodology and Evaluation'],
+            ['Responsible person', 'Dr. Marleen Stelter']
+        ],
+        greeting: 'Dear participants,',
+        intro1: [
+            'This study investigates how different contextual information influences the perception and evaluation of faces. Your responses will be anonymized and used for scientific purposes, and may be included in academic publications.'
+        ],
+        doTitle: 'What You Will Do:',
+        doList: [
+            'Read this information sheet and provide informed consent',
+            'Evaluate and rank face images together with contextual information',
+            'Complete a short demographic questionnaire',
+            'Read a brief debriefing'
+        ],
+        afterList: [
+            'This study takes approximately 60 minutes.',
+            'Participation is voluntary. You may skip individual tasks or withdraw from the study at any time without giving a reason and without any disadvantage.',
+            'Your data will be processed confidentially and used exclusively for scientific research purposes.'
+        ],
+        intro2: [
+            'To participate, it is necessary that you give your consent to data collection and processing by clicking the corresponding option.',
+            'Below you are given the opportunity to inform yourself in detail about data collection and processing and to make a conscious decision about your consent. The purpose of collecting and processing personal data is the research project mentioned above, or the service offering, as well as the administration of participation incentives.',
+            'If you have questions about this study or about data processing, please contact the project contact persons named below.',
+            'For general questions about data protection, please contact the ' + lk(LINKS.dsb, 'Data Protection Officer of FernUniversität') + '.'
+        ],
+        contacts: 'Sarah Boidoglou &amp; Savas Großmann (Study Leads) &mdash; sarah.boidoglou@dfki.de, savas.grossmann@dfki.de<br>' +
+                  'Mansi Sharma &amp; Philipp Müller (Supervision) &mdash; mansi.sharma@dfki.de, phmueller@is.mpg.de<br>' +
+                  'DFKI GmbH, Kesselhaus in der Lanolinfabrik, Salzufer 15/16, 10587 Berlin, Germany',
+        dpMain: 'Further Information on Data Protection',
+        dpSections: [
+            ['Primary Contact for Data Responsibility', [
+                'The controller within the meaning of the EU General Data Protection Regulation (GDPR), the applicable national data protection laws of the member states and other data protection provisions (the “body that decides on the purposes and means of the processing of personal data”) is:',
+                '<b>FernUniversität in Hagen</b><br>Universitätsstraße 47<br>58097 Hagen, Germany',
+                'Public-law corporation<br>represented by the Rector',
+                'E-mail: rektor@fernuni-hagen.de<br>' + lk(LINKS.contact, LINKS.contact)
+            ]],
+            ['Duration of Data Retention', [
+                'All raw data will be retained for as long as it is needed for the research purpose or for maintaining the service offering mentioned above. Any subsequent sharing in line with good scientific practice (e.g. through an Open Science initiative) will only take place in a state that, through data anonymization/aggregation, does not allow conclusions about individuals without disproportionate effort.'
+            ]],
+            ['The Following Personal Data May Be Collected During Participation', [
+                '<b>Within the research purpose:</b><br>Only data that is strictly necessary for the research purpose (e.g. sociodemographic data) and, where applicable, pseudonymization codes for linking several measurement points.',
+                '<b>For the purpose of issuing a confirmation of participation and crediting participation incentives:</b><br>To verify participation, a pseudonym is used and linked to the framework data of the project (ID, title, subject area, number of participant hours completed through participation) in order to issue the correct credit/confirmation. Not collected if the corresponding incentive procedure is not used.',
+                '<b>For the purpose of further incentives:</b><br>Contact details to hand out awarded incentives (e.g. e-mail address). Not collected if the corresponding incentive procedure is not used.',
+                'Should further personal data be collected and used, you will be informed separately on the following pages and asked for your consent.',
+                'All personal data will be used exclusively for scientific purposes or for crediting participation incentives. All personal data will be anonymized/pseudonymized/aggregated/deleted as early as the purpose of collection allows and processed exclusively for the respective purpose.'
+            ]],
+            ['The Following Special Categories of Personal Data Under Art. 9 GDPR Are Collected and Processed', [
+                'No special categories of personal data under Art. 9 GDPR are processed.'
+            ]],
+            ['Legal Basis for Data Processing', [
+                'Art. 6(1)(a) GDPR and/or Art. 6(1)(e) GDPR in conjunction with Art. 17 DSG NRW (North Rhine-Westphalia Data Protection Act).'
+            ]],
+            ['Recipients of Personal Data', [
+                'The project contact persons named on the start page of the research project and the researchers involved in the project. If the research support team of the Faculty of Psychology is involved, the local, faculty-internal admin team (questionpro-admin@fernuni-hagen.de) also receives access for this specific purpose.'
+            ]],
+            ['Information on Data Transfer', [
+                'A transfer of personal data to a third country or an international organization outside the scope of the GDPR is not planned. In line with good scientific practice (Open Science initiative), your data may be published in a state that does not allow conclusions about individuals (through data anonymization/aggregation).'
+            ]],
+            ['Information on Your Rights', [
+                'For the rights granted to you by the General Data Protection Regulation of the European Union, please see the following link (German):<br>' + lk(LINKS.rights, 'Rechteinformationen, Absatz V. Rechte der betroffenen Person'),
+                'If your participation is identifiable, you have the right to withdraw your consent to data collection and processing at any time with effect for the future. To do so, please contact the project contact persons named on this page by e-mail.'
+            ]],
+            ['Officially Appointed Data Protection Officer', [
+                '<b>Postal address:</b><br>Datenschutzbeauftragter der FernUniversität in Hagen<br>58084',
+                '<b>Street address:</b><br>Universitätsstraße 27<br>58097 Hagen, Germany',
+                'Tel.: +49 2331 987 - 2511<br>E-mail: Datenschutzbeauftragter@FernUni-Hagen.de'
+            ]]
+        ],
+        agreeText: 'By agreeing below, you confirm that you have read and understood this information and voluntarily consent to participate in this study.',
+        check1: 'I hereby give my consent under data protection law in accordance with the information provided here.',
+        check2: 'I hereby consent to my data being used for the scientific purposes stated above.',
+        decline: 'I do not agree',
+        next: 'Continue',
+        declineTitle: 'Thank you',
+        declineText: 'You have chosen not to participate. The experiment will now close.',
+        sona: {
+            title: 'Please read carefully!',
+            paras: [
+                'Participation incentives (including participant-hour certificates) for this participation are credited via the participation management platform of the Faculty of Psychology (' + lk(LINKS.sona, 'Sona Systems') + ').',
+                'Using Sona Systems makes it possible to award incentives for participation without having to ask participants for personal data or student ID numbers.',
+                'To receive the participation incentives, you must sign up (or have signed up) for this study in Sona Systems and then start your participation either via the participation link in Sona Systems (or via another route explicitly explained by the researchers in the study details in Sona Systems).',
+                'This applies both to FernUni students and to external participants who wish to receive credit for participation in this study.',
+                'Details about Sona Systems can be found on the ' + lk(LINKS.sonaInfo, 'Sona information pages for participants (German)') + '.',
+                'Participation incentives will be credited to you as described in the study information of this study.',
+                'Please make sure to complete your participation fully and to click <b>“Complete participation”</b> at the end in order to receive the incentives you have earned.',
+                '<b>Otherwise, the participation incentives cannot be issued.</b>'
+            ],
+            button: 'Understood, continue'
+        }
+    };
+    
+    var T = (L === 'de') ? TEXT_DE : TEXT_EN;
+    
+    // ---------- Reset globals ----------
+    consent_given = false;
+    consent_declined = false;
+    consent_done = false;
+    consent_1 = false;
+    consent_2 = false;
+    consent_rt = null;
+    
+    // get screensize
+    expInfo['windowWidth'] = window.innerWidth;
+    expInfo['windowHeight'] = window.innerHeight;
+    
     if (quickMode) {
         continueRoutine = false;
         consent_done = true;
@@ -1534,55 +2191,116 @@ function Check_ConsentRoutineBegin(snapshot) {
         // Hide the PsychoJS canvas temporarily
         psychoJS.window._renderer.view.style.display = 'none';
     
+        // ---------- Styles ----------
+        var csStyle = document.createElement('style');
+        csStyle.id = 'consent-style';
+        csStyle.textContent =
+            '#cs-card, #cs-card * {box-sizing:border-box;}' +
+            '#cs-card {line-height:1.6;}' +
+            '#cs-card p, #cs-card li {font-size:14.5px;margin:0 0 10px 0;overflow-wrap:anywhere;word-break:break-word;}' +
+            '#cs-card ul {margin:0 0 10px 0;padding-left:22px;}' +
+            '#cs-card h3 {font-size:17px;margin:28px 0 8px 0;padding-top:18px;border-top:1px solid #444;}' +
+            '#cs-card h4 {font-size:15px;margin:18px 0 6px 0;overflow-wrap:anywhere;}' +
+            '#cs-card .cs-head {display:grid;grid-template-columns:minmax(120px,200px) 1fr;gap:6px 16px;background:#2c2c2c;border-radius:6px;padding:12px 16px;margin-bottom:18px;font-size:14px;}' +
+            '#cs-card .cs-k {color:#aaa;}' +
+            '#cs-card .cs-v {overflow-wrap:anywhere;}' +
+            '#cs-card .cs-checks {background:#2c2c2c;border-radius:6px;padding:14px 16px;margin-top:24px;}' +
+            '#cs-card label {display:flex;gap:10px;align-items:flex-start;font-size:14.5px;margin-top:12px;cursor:pointer;}' +
+            '#cs-card input[type=checkbox] {flex:0 0 auto;width:18px;height:18px;margin-top:3px;cursor:pointer;}' +
+            '#cs-card .cs-btns {display:flex;gap:15px;margin-top:22px;flex-wrap:wrap;}' +
+            '#cs-card .cs-btns button {flex:1 1 180px;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;}' +
+            '#cs-card .cs-btns button:disabled {opacity:0.4;cursor:not-allowed;}' +
+            '@media (max-width:560px) {#cs-card .cs-head {grid-template-columns:1fr;}}';
+        document.head.appendChild(csStyle);
+    
+        // ---------- Build HTML ----------
+        function paras(arr) {
+            var s = '';
+            for (var i = 0; i < arr.length; i++) { s += '<p>' + arr[i] + '</p>'; }
+            return s;
+        }
+    
+        var p1 = '<h2 style="margin-top:0;">' + T.title + '</h2>';
+        p1 += '<div class="cs-head">';
+        for (var r = 0; r < T.headRows.length; r++) {
+            p1 += '<div class="cs-k">' + T.headRows[r][0] + '</div><div class="cs-v">' + T.headRows[r][1] + '</div>';
+        }
+        p1 += '</div>';
+        p1 += '<p>' + T.greeting + '</p>' + paras(T.intro1);
+        p1 += '<p><strong>' + T.doTitle + '</strong></p><ul>';
+        for (var d = 0; d < T.doList.length; d++) { p1 += '<li>' + T.doList[d] + '</li>'; }
+        p1 += '</ul>' + paras(T.afterList) + paras(T.intro2);
+        p1 += '<p>' + T.contacts + '</p>';
+    
+        p1 += '<h3>' + T.dpMain + '</h3>';
+        for (var s = 0; s < T.dpSections.length; s++) {
+            p1 += '<h4>' + T.dpSections[s][0] + '</h4>' + paras(T.dpSections[s][1]);
+        }
+    
+        p1 += '<div class="cs-checks"><p style="margin:0;">' + T.agreeText + '</p>' +
+              '<label><input type="checkbox" id="cs-c1"><span>' + T.check1 + '</span></label>' +
+              '<label><input type="checkbox" id="cs-c2"><span>' + T.check2 + '</span></label></div>' +
+              '<div class="cs-btns">' +
+                '<button id="consent-decline">' + T.decline + '</button>' +
+                '<button id="consent-accept" disabled>' + T.next + '</button>' +
+              '</div>';
+    
+        var p2 = '<h2 style="margin-top:0;">' + T.sona.title + '</h2>' + paras(T.sona.paras) +
+                 '<div class="cs-btns"><button id="consent-sona-next">' + T.sona.button + '</button></div>';
+    
+        // ---------- Overlay ----------
         var overlay = document.createElement('div');
         overlay.id = 'consent-overlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
-    
-        // global vars
-        consent_given = false;
-        consent_declined = false;
-        consent_done = false;
-    
-        overlay.innerHTML = '\
-        <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:600px;max-height:90vh;overflow-y:auto;">\
-          <h2 style="margin-top:0;">Informed Consent</h2>\
-          <div style="line-height:1.6;font-size:15px;">\
-            <p>This study investigates how different contextual information influences the perception and evaluation of faces. Your responses will be anonymized and used for scientific purposes, and may be included in academic publications.</p>\
-            <p><strong>What You Will Do:</strong></p>\
-            <ul style="margin-top:0;padding-left:20px;">\
-              <li>Read this information sheet and provide informed consent</li>\
-              <li>Evaluate and rank face images together with contextual information</li>\
-              <li>Complete a short demographic questionnaire</li>\
-              <li>Complete a brief debriefing questionnaire</li>\
-            </ul>\
-            <p>This study takes approximately 60 minutes.</p>\
-            <p>Participation is voluntary. You may skip individual tasks or withdraw from the study at any time without giving a reason and without any disadvantage.</p>\
-            <p>Your data will be processed confidentially and used exclusively for scientific research purposes.</p>\
-            <p>Sarah Boidoglou &amp; Savas Gro&szlig;mann (Study Leads) &mdash; sarah.boidoglou@dfki.de, savas.grossmann@dfki.de<br>\
-            Mansi Sharma &amp; Philipp Müller (Supervision) &mdash; mansi.sharma@dfki.de, phmueller@is.mpg.de<br>\
-            DFKI GmbH, Kesselhaus in der Lanolinfabrik, Salzufer 15/16, 10587 Berlin, Germany</p>\
-            <p>By agreeing below, you confirm that you have read and understood this information and voluntarily consent to participate in this study.</p>\
-          </div>\
-          <div style="display:flex;gap:15px;margin-top:25px;">\
-            <button id="consent-decline" style="flex:1;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">I do not agree</button>\
-            <button id="consent-accept" style="flex:1;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">I Accept</button>\
-          </div>\
-        </div>';
-    
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
+        overlay.innerHTML =
+            '<div id="cs-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,760px);max-height:94vh;overflow-y:auto;">' +
+              '<div id="cs-page1">' + p1 + '</div>' +
+              '<div id="cs-page2" style="display:none;">' + p2 + '</div>' +
+            '</div>';
         document.body.appendChild(overlay);
     
-        document.getElementById('consent-accept').addEventListener('click', function() {
-            consent_given = true;
+        var csStart = performance.now();
+        var card = document.getElementById('cs-card');
+        var c1 = document.getElementById('cs-c1');
+        var c2 = document.getElementById('cs-c2');
+        var acceptBtn = document.getElementById('consent-accept');
+    
+        function finishConsent() {
             document.body.removeChild(overlay);
+            document.head.removeChild(csStyle);
             psychoJS.window._renderer.view.style.display = 'block';
             consent_done = true;
+        }
+    
+        function updateAccept() {
+            acceptBtn.disabled = !(c1.checked && c2.checked);
+        }
+        c1.addEventListener('change', updateAccept);
+        c2.addEventListener('change', updateAccept);
+    
+        acceptBtn.addEventListener('click', function() {
+            if (!(c1.checked && c2.checked)) { return; }
+            consent_given = true;
+            consent_1 = true;
+            consent_2 = true;
+            consent_rt = (performance.now() - csStart) / 1000;
+    
+            if (SHOW_SONA_PAGE) {
+                document.getElementById('cs-page1').style.display = 'none';
+                document.getElementById('cs-page2').style.display = 'block';
+                card.scrollTop = 0;
+            } else {
+                finishConsent();
+            }
         });
+    
+        document.getElementById('consent-sona-next').addEventListener('click', finishConsent);
     
         document.getElementById('consent-decline').addEventListener('click', function() {
             consent_declined = true;
-            overlay.querySelector('div').innerHTML =
-                '<h2 style="margin-top:0;">Thank you</h2>' +
-                '<p>You have chosen not to participate. The experiment will now close.</p>';
+            card.innerHTML =
+                '<h2 style="margin-top:0;">' + T.declineTitle + '</h2>' +
+                '<p>' + T.declineText + '</p>';
     
             // NOTE: adjust this if your project has its own quit function
             // (e.g. "quitPsychoJS('', false)") instead of calling psychoJS.quit() directly.
@@ -1590,10 +2308,6 @@ function Check_ConsentRoutineBegin(snapshot) {
                 psychoJS.quit({message: 'Participant did not consent.', isCompleted: false});
             }, 3000);
         });
-    
-        // get screensize
-        expInfo['windowWidth'] = window.innerWidth;
-        expInfo['windowHeight'] = window.innerHeight;
     }
     psychoJS.experiment.addData('Check_Consent.started', globalClock.getTime());
     Check_ConsentMaxDuration = null
@@ -1674,6 +2388,16 @@ function Check_ConsentRoutineEnd(snapshot) {
     psychoJS.experiment.addData('Check_Consent.stopped', globalClock.getTime());
     if (!quickMode) {
         psychoJS.experiment.addData('consent_given', consent_given);
+        psychoJS.experiment.addData('consent_data_protection', consent_1);
+        psychoJS.experiment.addData('consent_scientific_use', consent_2);
+        psychoJS.experiment.addData('consent_rt', consent_rt);
+    
+        // safety cleanup in case the routine ended early
+        var csOv = document.getElementById('consent-overlay');
+        if (csOv) { document.body.removeChild(csOv); }
+        var csSt = document.getElementById('consent-style');
+        if (csSt) { document.head.removeChild(csSt); }
+        psychoJS.window._renderer.view.style.display = 'block';
     }
     // the Routine "Check_Consent" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
@@ -1705,6 +2429,53 @@ function Participant_CodeRoutineBegin(snapshot) {
     routineTimer.reset();
     Participant_CodeMaxDurationReached = false;
     // update component parameters for each repeat
+    // ---------- Texts (adjust here) ----------
+    var TEXT_DE = {
+        title: 'Ihr Teilnahmecode',
+        body: 'Damit Ihre Daten vertraulich bleiben und Sie später trotzdem deren Löschung beantragen können, wurde Ihnen ein zufälliger Teilnahmecode zugewiesen. Bitte notieren Sie ihn jetzt oder machen Sie einen Screenshot &ndash; Sie benötigen ihn, falls Sie jemals die Entfernung Ihrer Daten wünschen. Er kann später nicht wiederhergestellt werden.',
+        copy: 'Code kopieren',
+        copied: 'Kopiert!',
+        copyFailed: 'Kopieren fehlgeschlagen – bitte notieren Sie den Code',
+        copyUnavailable: 'Kopieren nicht verfügbar – bitte notieren Sie den Code',
+        confirm: 'Ich habe meinen Teilnahmecode gespeichert',
+        next: 'Weiter'
+    };
+    var TEXT_EN = {
+        title: 'Your Participant Code',
+        body: 'To keep your data confidential while still allowing you to request its deletion later, you have been assigned a random participant code. Please write it down now or take a screenshot &ndash; you will need it if you ever want your data removed. It cannot be recovered later.',
+        copy: 'Copy code',
+        copied: 'Copied!',
+        copyFailed: 'Copy failed - please write it down',
+        copyUnavailable: 'Copy not available - please write it down',
+        confirm: 'I have saved my participant code',
+        next: 'Continue'
+    };
+    var L = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
+    var T = (L === 'de') ? TEXT_DE : TEXT_EN;
+    
+    // --- random participant code, e.g. K7MP-4RX9 ---
+    // Alphabet without look-alikes (no 0/O, 1/I/L): 31 characters, 8 positions
+    // -> 31^8 = ~850 billion possible codes, so a duplicate is practically impossible.
+    function generateParticipantCode() {
+        var alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        var limit = 256 - (256 % alphabet.length);   // rejection sampling: no modulo bias
+        var chars = [];
+        while (chars.length < 8) {
+            var buf = new Uint8Array(16);
+            window.crypto.getRandomValues(buf);
+            for (var i = 0; i < buf.length && chars.length < 8; i++) {
+                if (buf[i] < limit) {
+                    chars.push(alphabet.charAt(buf[i] % alphabet.length));
+                }
+            }
+        }
+        return chars.slice(0, 4).join('') + '-' + chars.slice(4).join('');
+    }
+    
+    // global vars
+    participant_code = generateParticipantCode();
+    pcode_done = false;
+    
     if (quickMode) {
         continueRoutine = false;
         pcode_done = true;
@@ -1712,45 +2483,30 @@ function Participant_CodeRoutineBegin(snapshot) {
         // Hide the PsychoJS canvas temporarily
         psychoJS.window._renderer.view.style.display = 'none';
     
-        // --- random participant code, e.g. K7MP-4RX9 ---
-        // Alphabet without look-alikes (no 0/O, 1/I/L): 31 characters, 8 positions
-        // -> 31^8 = ~850 billion possible codes, so a duplicate is practically impossible.
-        function generateParticipantCode() {
-            var alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-            var limit = 256 - (256 % alphabet.length);   // rejection sampling: no modulo bias
-            var chars = [];
-            while (chars.length < 8) {
-                var buf = new Uint8Array(16);
-                window.crypto.getRandomValues(buf);
-                for (var i = 0; i < buf.length && chars.length < 8; i++) {
-                    if (buf[i] < limit) {
-                        chars.push(alphabet.charAt(buf[i] % alphabet.length));
-                    }
-                }
-            }
-            return chars.slice(0, 4).join('') + '-' + chars.slice(4).join('');
-        }
+        var pcStyle = document.createElement('style');
+        pcStyle.id = 'pcode-style';
+        pcStyle.textContent =
+            '#pcode-card, #pcode-card * {box-sizing:border-box;}' +
+            '#pcode-card p {overflow-wrap:anywhere;word-break:break-word;}' +
+            '#pcode-continue:disabled {opacity:0.4;cursor:not-allowed;}';
+        document.head.appendChild(pcStyle);
     
         var overlay = document.createElement('div');
         overlay.id = 'pcode-overlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
     
-        // global vars
-        participant_code = generateParticipantCode();
-        pcode_done = false;
-    
-        overlay.innerHTML = '\
-        <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
-          <h2 style="margin-top:0;">Your Participant Code</h2>\
-          <p style="line-height:1.5;">To keep your data confidential while still allowing you to request its deletion later, you have been assigned a random participant code. Please write it down now or take a screenshot &ndash; you will need it if you ever want your data removed. It cannot be recovered later.</p>\
-          <p id="pcode-display" style="font-size:32px;font-weight:bold;letter-spacing:4px;text-align:center;background:#111;padding:20px;border-radius:4px;margin:25px 0 10px 0;"></p>\
-          <button id="pcode-copy" style="width:100%;padding:10px;background:#444;color:white;border:none;border-radius:4px;font-size:14px;cursor:pointer;">Copy code</button>\
-          <label style="display:flex;align-items:center;gap:8px;margin-top:25px;cursor:pointer;">\
-            <input id="pcode-confirm" type="checkbox" style="width:18px;height:18px;">\
-            I have saved my participant code\
-          </label>\
-          <button id="pcode-continue" style="width:100%;padding:12px;margin-top:15px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;" disabled>Continue</button>\
-        </div>';
+        overlay.innerHTML =
+            '<div id="pcode-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,520px);max-height:94vh;overflow-y:auto;">' +
+              '<h2 style="margin-top:0;">' + T.title + '</h2>' +
+              '<p style="line-height:1.5;">' + T.body + '</p>' +
+              '<p id="pcode-display" style="font-size:32px;font-weight:bold;letter-spacing:4px;text-align:center;background:#111;padding:20px 10px;border-radius:4px;margin:25px 0 10px 0;"></p>' +
+              '<button id="pcode-copy" style="width:100%;padding:10px;background:#444;color:white;border:none;border-radius:4px;font-size:14px;cursor:pointer;">' + T.copy + '</button>' +
+              '<label style="display:flex;align-items:center;gap:8px;margin-top:25px;cursor:pointer;">' +
+                '<input id="pcode-confirm" type="checkbox" style="flex:0 0 auto;width:18px;height:18px;">' +
+                '<span>' + T.confirm + '</span>' +
+              '</label>' +
+              '<button id="pcode-continue" style="width:100%;padding:12px;margin-top:15px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;" disabled>' + T.next + '</button>' +
+            '</div>';
     
         document.body.appendChild(overlay);
     
@@ -1760,10 +2516,10 @@ function Participant_CodeRoutineBegin(snapshot) {
             var btn = this;
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(participant_code)
-                    .then(function() { btn.textContent = 'Copied!'; })
-                    .catch(function() { btn.textContent = 'Copy failed - please write it down'; });
+                    .then(function() { btn.textContent = T.copied; })
+                    .catch(function() { btn.textContent = T.copyFailed; });
             } else {
-                btn.textContent = 'Copy not available - please write it down';
+                btn.textContent = T.copyUnavailable;
             }
         });
     
@@ -1773,6 +2529,7 @@ function Participant_CodeRoutineBegin(snapshot) {
     
         document.getElementById('pcode-continue').addEventListener('click', function() {
             document.body.removeChild(overlay);
+            document.head.removeChild(pcStyle);
             psychoJS.window._renderer.view.style.display = 'block';
             pcode_done = true;
         });
@@ -1854,7 +2611,16 @@ function Participant_CodeRoutineEnd(snapshot) {
       }
     });
     psychoJS.experiment.addData('Participant_Code.stopped', globalClock.getTime());
-    if (!quickMode) psychoJS.experiment.addData('participant_code', participant_code);
+    if (!quickMode) {
+        psychoJS.experiment.addData('participant_code', participant_code);
+    
+        // safety cleanup in case the routine ended early
+        var pcOv = document.getElementById('pcode-overlay');
+        if (pcOv) { document.body.removeChild(pcOv); }
+        var pcSt = document.getElementById('pcode-style');
+        if (pcSt) { document.head.removeChild(pcSt); }
+        psychoJS.window._renderer.view.style.display = 'block';
+    }
     // the Routine "Participant_Code" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -1868,7 +2634,18 @@ function Participant_CodeRoutineEnd(snapshot) {
 
 
 var DemographicsMaxDurationReached;
+var demo_age;
+var demo_gender;
+var demo_gender_self;
+var demo_native_english;
+var demo_english_level;
+var demo_vision;
+var demo_education;
+var demo_student;
+var demo_field_of_study;
 var demo_done;
+var demo_screenout;
+var demo_screenout_reason;
 var DemographicsMaxDuration;
 var DemographicsComponents;
 function DemographicsRoutineBegin(snapshot) {
@@ -1885,6 +2662,100 @@ function DemographicsRoutineBegin(snapshot) {
     routineTimer.reset();
     DemographicsMaxDurationReached = false;
     // update component parameters for each repeat
+    // ---------- German texts ----------
+    var YESNO_DE = [['yes', 'Ja'], ['no', 'Nein']];
+    var YESNO_EN = [['yes', 'Yes'], ['no', 'No']];
+    
+    var TEXT_DE = {
+        title: 'Demografische Angaben',
+        select: '-- Auswählen --',
+        age: 'Alter',
+        gender: 'Geschlecht',
+        genderOpts: [['female', 'Weiblich'], ['male', 'Männlich'], ['non_binary', 'Nicht-binär / divers'],
+                     ['self_describe', 'Ich beschreibe mich selbst'], ['prefer_not', 'Keine Angabe']],
+        genderSelf: 'Bitte beschreiben Sie sich selbst',
+        native: 'Ist Deutsch Ihre Erst- bzw. Muttersprache?',
+        yesno: YESNO_DE,
+        level: 'Selbsteingeschätzte Deutschkenntnisse',
+        levelOpts: [['A1', 'A1'], ['A2', 'A2'], ['B1', 'B1'], ['B2', 'B2'], ['C1', 'C1'], ['C2', 'C2'], ['native_like', 'Muttersprachliches Niveau']],
+        vision: 'Haben Sie normales oder korrigiertes Sehvermögen (z. B. mit Brille/Kontaktlinsen)?',
+        education: 'Höchster Bildungsabschluss',
+        eduOpts: [['high_school', 'Schulabschluss (z. B. Mittlere Reife, Abitur)'], ['some_college', 'Studium begonnen / ohne Abschluss'],
+                  ['bachelor', 'Bachelor'], ['master', 'Master / Diplom / Staatsexamen'],
+                  ['doctorate', 'Promotion (Dr.)'], ['other', 'Sonstiges']],
+        student: 'Studieren Sie derzeit an einer Hochschule?',
+        field: 'Studienfach / Fachbereich',
+        fieldOpts: [['natural_sciences', 'Naturwissenschaften'], ['engineering', 'Ingenieurwesen / Technik'],
+                    ['computer_science', 'Informatik / IT'], ['social_sciences', 'Sozialwissenschaften'],
+                    ['psychology', 'Psychologie'], ['humanities', 'Geisteswissenschaften'],
+                    ['medicine_health', 'Medizin / Gesundheitswissenschaften'], ['business_economics', 'Wirtschaftswissenschaften'],
+                    ['law', 'Rechtswissenschaften'], ['arts', 'Kunst / Design'], ['education', 'Erziehungswissenschaften / Lehramt'],
+                    ['other', 'Sonstiges']],
+        specify: 'Bitte angeben',
+        next: 'Weiter',
+        error: 'Bitte beantworten Sie alle Fragen.',
+        thankYou: 'Vielen Dank',
+        notEligible: 'Leider erfüllen Sie die Teilnahmevoraussetzungen für diese Studie nicht. Das Experiment wird nun geschlossen.',
+        reasons: {
+            under_18: 'Sie müssen mindestens 18 Jahre alt sein, um an dieser Studie teilzunehmen.',
+            language_below_b2: 'Für diese Studie sind Deutschkenntnisse mindestens auf dem Niveau B2 erforderlich.'
+        }
+    };
+    
+    // ---------- English texts ----------
+    var TEXT_EN = {
+        title: 'Demographics',
+        select: '-- Select --',
+        age: 'Age',
+        gender: 'Gender',
+        genderOpts: [['female', 'Female'], ['male', 'Male'], ['non_binary', 'Non-binary / Third gender'],
+                     ['self_describe', 'Prefer to self-describe'], ['prefer_not', 'Prefer not to say']],
+        genderSelf: 'Please self-describe',
+        native: 'Is English your first / native language?',
+        yesno: YESNO_EN,
+        level: 'Self-rated English proficiency',
+        levelOpts: [['A1', 'A1'], ['A2', 'A2'], ['B1', 'B1'], ['B2', 'B2'], ['C1', 'C1'], ['C2', 'C2'], ['native_like', 'Native-like']],
+        vision: 'Do you have normal or corrected-to-normal vision (e.g., wearing glasses/contacts)?',
+        education: 'Highest level of education',
+        eduOpts: [['high_school', 'High school diploma / Secondary school'], ['some_college', 'Some college / university'],
+                  ['bachelor', 'Bachelor\'s degree'], ['master', 'Master\'s degree / Graduate diploma'],
+                  ['doctorate', 'Doctorate (PhD / MD)'], ['other', 'Other']],
+        student: 'Are you currently a university student?',
+        field: 'Field of study',
+        fieldOpts: [['natural_sciences', 'Natural Sciences'], ['engineering', 'Engineering / Technology'],
+                    ['computer_science', 'Computer Science / IT'], ['social_sciences', 'Social Sciences'],
+                    ['psychology', 'Psychology'], ['humanities', 'Humanities'],
+                    ['medicine_health', 'Medicine / Health Sciences'], ['business_economics', 'Business / Economics'],
+                    ['law', 'Law'], ['arts', 'Arts / Design'], ['education', 'Education'],
+                    ['other', 'Other']],
+        specify: 'Please specify',
+        next: 'Continue',
+        error: 'Please answer all questions.',
+        thankYou: 'Thank you',
+        notEligible: 'Unfortunately you do not meet the eligibility criteria for this study. The experiment will now close.',
+        reasons: {
+            under_18: 'You must be 18 years or older to participate in this study.',
+            language_below_b2: 'This study requires an English proficiency of at least B2.'
+        }
+    };
+    
+    var L = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
+    var T = (L === 'de') ? TEXT_DE : TEXT_EN;
+    
+    // ---------- Reset globals ----------
+    demo_age = '';
+    demo_gender = '';
+    demo_gender_self = '';
+    demo_native_english = '';
+    demo_english_level = '';
+    demo_vision = '';
+    demo_education = '';
+    demo_student = '';
+    demo_field_of_study = '';
+    demo_done = false;
+    demo_screenout = false;
+    demo_screenout_reason = '';
+    
     if (quickMode) {
         continueRoutine = false;
         demo_done = true;
@@ -1892,126 +2763,58 @@ function DemographicsRoutineBegin(snapshot) {
         // Hide the PsychoJS canvas temporarily
         psychoJS.window._renderer.view.style.display = 'none';
     
-        // Create overlay form
+        // ---------- Styles ----------
+        var dmStyle = document.createElement('style');
+        dmStyle.id = 'demo-style';
+        dmStyle.textContent =
+            '#demo-card, #demo-card * {box-sizing:border-box;}' +
+            '#demo-card label {display:block;margin-bottom:8px;overflow-wrap:anywhere;word-break:break-word;}' +
+            '#demo-card select, #demo-card input[type=text], #demo-card input[type=number] {width:100%;padding:8px;font-size:16px;border-radius:4px;}' +
+            '#demo-card .demo-field {margin-bottom:20px;}' +
+            '#demo-card .demo-cond {display:none;margin-top:-10px;}' +
+            '#demo-card p {overflow-wrap:anywhere;word-break:break-word;}';
+        document.head.appendChild(dmStyle);
+    
+        // ---------- Build HTML ----------
+        function selectHtml(id, opts) {
+            var s = '<select id="' + id + '"><option value="">' + T.select + '</option>';
+            for (var i = 0; i < opts.length; i++) {
+                s += '<option value="' + opts[i][0] + '">' + opts[i][1] + '</option>';
+            }
+            return s + '</select>';
+        }
+    
+        var html =
+            '<h2 style="margin-top:0;">' + T.title + '</h2>' +
+    
+            '<div class="demo-field"><label>' + T.age + '</label>' +
+              '<input id="demo-age" type="number" min="1" max="100" step="1"></div>' +
+    
+            '<div class="demo-field"><label>' + T.gender + '</label>' + selectHtml('demo-gender', T.genderOpts) + '</div>' +
+            '<div id="demo-gender-self-wrap" class="demo-field demo-cond"><label>' + T.genderSelf + '</label>' +
+              '<input id="demo-gender-self" type="text"></div>' +
+    
+            '<div class="demo-field"><label>' + T.native + '</label>' + selectHtml('demo-native', T.yesno) + '</div>' +
+            '<div id="demo-english-level-wrap" class="demo-field demo-cond"><label>' + T.level + '</label>' +
+              selectHtml('demo-english-level', T.levelOpts) + '</div>' +
+    
+            '<div class="demo-field"><label>' + T.vision + '</label>' + selectHtml('demo-vision', T.yesno) + '</div>' +
+    
+            '<div class="demo-field"><label>' + T.education + '</label>' + selectHtml('demo-education', T.eduOpts) + '</div>' +
+    
+            '<div class="demo-field"><label>' + T.student + '</label>' + selectHtml('demo-student', T.yesno) + '</div>' +
+            '<div id="demo-field-wrap" class="demo-field demo-cond" style="margin-bottom:30px;"><label>' + T.field + '</label>' +
+              '<div style="margin-bottom:8px;">' + selectHtml('demo-field', T.fieldOpts) + '</div>' +
+              '<input id="demo-field-other" type="text" placeholder="' + T.specify + '" style="display:none;"></div>' +
+    
+            '<button id="demo-submit" style="width:100%;padding:12px;margin-top:10px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + T.next + '</button>' +
+            '<p id="demo-error" style="color:red;display:none;margin-top:10px;">' + T.error + '</p>';
+    
+        // ---------- Overlay ----------
         var overlay = document.createElement('div');
         overlay.id = 'demo-overlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
-    
-        // global vars
-        demo_age = '';
-        demo_gender = '';
-        demo_gender_self = '';
-        demo_native_english = '';
-        demo_english_level = '';
-        demo_vision = '';
-        demo_education = '';
-        demo_student = '';
-        demo_field_of_study = '';
-        demo_done = false;
-        demo_screenout = false;
-        demo_screenout_reason = '';
-    
-        overlay.innerHTML = '\
-        <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
-          <h2 style="margin-top:0;">Demographics</h2>\
-        \
-          <div style="margin-bottom:20px;">\
-            <label style="display:block;margin-bottom:8px;">Age</label>\
-            <input id="demo-age" type="number" min="1" max="100" step="1" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
-          </div>\
-        \
-          <div style="margin-bottom:20px;">\
-            <label style="display:block;margin-bottom:8px;">Gender</label>\
-            <select id="demo-gender" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-              <option value="">-- Select --</option>\
-              <option value="female">Female</option>\
-              <option value="male">Male</option>\
-              <option value="non_binary">Non-binary / Third gender</option>\
-              <option value="self_describe">Prefer to self-describe</option>\
-              <option value="prefer_not">Prefer not to say</option>\
-            </select>\
-          </div>\
-          <div id="demo-gender-self-wrap" style="display:none;margin-bottom:20px;margin-top:-10px;">\
-            <label style="display:block;margin-bottom:8px;">Please self-describe</label>\
-            <input id="demo-gender-self" type="text" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;">\
-          </div>\
-        \
-          <div style="margin-bottom:20px;">\
-            <label style="display:block;margin-bottom:8px;">Is English your first / native language?</label>\
-            <select id="demo-native" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-              <option value="">-- Select --</option>\
-              <option value="yes">Yes</option>\
-              <option value="no">No</option>\
-            </select>\
-          </div>\
-          <div id="demo-english-level-wrap" style="display:none;margin-bottom:20px;margin-top:-10px;">\
-            <label style="display:block;margin-bottom:8px;">Self-rated English proficiency</label>\
-            <select id="demo-english-level" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-              <option value="">-- Select --</option>\
-              <option value="A1">A1</option>\
-              <option value="A2">A2</option>\
-              <option value="B1">B1</option>\
-              <option value="B2">B2</option>\
-              <option value="C1">C1</option>\
-              <option value="C2">C2</option>\
-              <option value="native_like">Native-like</option>\
-            </select>\
-          </div>\
-        \
-          <div style="margin-bottom:20px;">\
-            <label style="display:block;margin-bottom:8px;">Do you have normal or corrected-to-normal vision (e.g., wearing glasses/contacts)?</label>\
-            <select id="demo-vision" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-              <option value="">-- Select --</option>\
-              <option value="yes">Yes</option>\
-              <option value="no">No</option>\
-            </select>\
-          </div>\
-        \
-          <div style="margin-bottom:20px;">\
-            <label style="display:block;margin-bottom:8px;">Highest level of education</label>\
-            <select id="demo-education" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-              <option value="">-- Select --</option>\
-              <option value="high_school">High school diploma / Secondary school</option>\
-              <option value="some_college">Some college / university</option>\
-              <option value="bachelor">Bachelor\'s degree</option>\
-              <option value="master">Master\'s degree / Graduate diploma</option>\
-              <option value="doctorate">Doctorate (PhD / MD)</option>\
-              <option value="other">Other</option>\
-            </select>\
-          </div>\
-        \
-          <div style="margin-bottom:20px;">\
-            <label style="display:block;margin-bottom:8px;">Are you currently a university student?</label>\
-            <select id="demo-student" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-              <option value="">-- Select --</option>\
-              <option value="yes">Yes</option>\
-              <option value="no">No</option>\
-            </select>\
-          </div>\
-          <div id="demo-field-wrap" style="display:none;margin-bottom:30px;margin-top:-10px;">\
-            <label style="display:block;margin-bottom:8px;">Field of study</label>\
-            <select id="demo-field" style="width:100%;padding:8px;font-size:16px;border-radius:4px;margin-bottom:8px;">\
-              <option value="">-- Select --</option>\
-              <option value="natural_sciences">Natural Sciences</option>\
-              <option value="engineering">Engineering / Technology</option>\
-              <option value="computer_science">Computer Science / IT</option>\
-              <option value="social_sciences">Social Sciences</option>\
-              <option value="psychology">Psychology</option>\
-              <option value="humanities">Humanities</option>\
-              <option value="medicine_health">Medicine / Health Sciences</option>\
-              <option value="business_economics">Business / Economics</option>\
-              <option value="law">Law</option>\
-              <option value="arts">Arts / Design</option>\
-              <option value="education">Education</option>\
-              <option value="other">Other</option>\
-            </select>\
-            <input id="demo-field-other" type="text" placeholder="Please specify" style="width:100%;padding:8px;font-size:16px;border-radius:4px;box-sizing:border-box;display:none;">\
-          </div>\
-        \
-          <button id="demo-submit" style="width:100%;padding:12px;margin-top:10px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
-          <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer all questions.</p>\
-        </div>';
-    
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
+        overlay.innerHTML = '<div id="demo-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,520px);max-height:94vh;overflow-y:auto;">' + html + '</div>';
         document.body.appendChild(overlay);
     
         // --- conditional field toggling ---
@@ -2036,16 +2839,17 @@ function DemographicsRoutineBegin(snapshot) {
         });
     
         // --- helper: replace overlay content with a screen-out message and quit ---
-        function demoScreenOut(reason) {
+        // reasonCode is language-independent (saved in the data); the text is shown to the participant
+        function demoScreenOut(reasonCode) {
             demo_screenout = true;
-            demo_screenout_reason = reason;
-            overlay.querySelector('div').innerHTML =
-                '<h2 style="margin-top:0;">Thank you</h2>' +
-                '<p>' + reason + '</p>' +
-                '<p>Unfortunately you do not meet the eligibility criteria for this study. The experiment will now close.</p>';
+            demo_screenout_reason = reasonCode;
+            document.getElementById('demo-card').innerHTML =
+                '<h2 style="margin-top:0;">' + T.thankYou + '</h2>' +
+                '<p>' + T.reasons[reasonCode] + '</p>' +
+                '<p>' + T.notEligible + '</p>';
     
             setTimeout(function() {
-                psychoJS.quit({message: reason, isCompleted: false});
+                psychoJS.quit({message: reasonCode, isCompleted: false});
             }, 4000);
         }
     
@@ -2080,14 +2884,14 @@ function DemographicsRoutineBegin(snapshot) {
     
             // --- eligibility / screen-out checks ---
             if (ageNum < 18) {
-                demoScreenOut('You must be 18 years or older to participate in this study.');
+                demoScreenOut('under_18');
                 return;
             }
     
             if (nativeEnglish === 'no') {
                 var levelOrder = {A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6, native_like: 7};
                 if (levelOrder[englishLevel] < levelOrder['B2']) {
-                    demoScreenOut('This study requires an English proficiency of at least B2.');
+                    demoScreenOut('language_below_b2');
                     return;
                 }
             }
@@ -2104,6 +2908,7 @@ function DemographicsRoutineBegin(snapshot) {
     
             // clean up
             document.body.removeChild(overlay);
+            document.head.removeChild(dmStyle);
             psychoJS.window._renderer.view.style.display = 'block';
             demo_done = true;
         });
@@ -2200,6 +3005,12 @@ function DemographicsRoutineEnd(snapshot) {
         psychoJS.experiment.nextEntry();
         // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
         routineTimer.reset();
+        // safety cleanup in case the routine ended early
+        var dmOv = document.getElementById('demo-overlay');
+        if (dmOv) { document.body.removeChild(dmOv); }
+        var dmSt = document.getElementById('demo-style');
+        if (dmSt) { document.head.removeChild(dmSt); }
+        psychoJS.window._renderer.view.style.display = 'block';
     }
     // the Routine "Demographics" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
@@ -2238,24 +3049,46 @@ function InstructionsRoutineBegin(snapshot) {
     key_resp.rt = undefined;
     _key_resp_allKeys = [];
     // ---------- Texts (adjust here) ----------
-    var TEXT = {
+    var TEXT_EN = {
         title: 'Welcome to the experiment',
-        intro: 'In this study, you will complete a series of trials consisting of three phases, followed by a short sorting task.',
+        intro: 'In this study, you will complete a series of 20 trials consisting of three phases.',
         phases: [
             ['Phase 1 – Scene Presentation',
              'You will first see a short scene description together with an image.'],
             ['Phase 2 – Face Description',
              'After viewing the scene, you will be asked to briefly describe the face of the person shown in the scene using your own words.'],
             ['Phase 3 – Face Ranking',
-             'Next, you will see a collage containing six faces. Your task is to rank the faces according to how likely they match the previously shown scene.<br><br>' +
+             'Your task is to rank the faces according to how likely they match the previously shown scene.<br><br>' +
              'Place the face you think matches the scene best closer to <b>“Most likely”</b> and the face you think matches the scene least closer to <b>“Least likely”</b>.'],
-            ['Phase 4 – Sorting Task',
-             'Afterwards, you will complete a short sorting task. Words and images appear one at a time, and you assign each one to a category as quickly and as accurately as possible using the keyboard. Detailed instructions will follow before this task starts.']
+            ['Phase 4 – Association Task',
+             'Afterwards, you will complete a short association task. Words and images appear one at a time, and you assign each one to a category as quickly and as accurately as possible using the keyboard. Detailed instructions will follow before this task starts.']
         ],
         note: 'There are no correct or incorrect answers.',
         button: 'Start',
         hint: 'or press ENTER to begin'
     };
+    
+    var TEXT_DE = {
+        title: 'Willkommen zum Experiment',
+        intro: 'In dieser Studie bearbeiten Sie 20 Durchgänge, die jeweils aus drei Phasen bestehen.',
+        phases: [
+            ['Phase 1 – Szenenpräsentation',
+             'Zunächst sehen Sie eine kurze Szenenbeschreibung zusammen mit einem Bild.'],
+            ['Phase 2 – Gesichtsbeschreibung',
+             'Nach der Szene werden Sie gebeten, das Gesicht der in der Szene gezeigten Person kurz in eigenen Worten zu beschreiben.'],
+            ['Phase 3 – Gesichter-Rangfolge',
+             'Ihre Aufgabe ist es, die Gesichter danach in eine Rangfolge zu bringen, wie wahrscheinlich sie zu der zuvor gezeigten Szene passen.<br><br>' +
+             'Platzieren Sie das Gesicht, das Ihrer Meinung nach am besten zur Szene passt, näher an <b>„Am wahrscheinlichsten“</b> und das Gesicht, das am wenigsten zur Szene passt, näher an <b>„Am unwahrscheinlichsten“</b>.'],
+            ['Phase 4 – Assoziationsaufgabe',
+             'Anschließend bearbeiten Sie eine kurze Assoziationsaufgabe. Wörter und Bilder erscheinen nacheinander, und Sie ordnen jedes davon so schnell und so genau wie möglich mithilfe der Tastatur einer Kategorie zu. Ausführliche Anweisungen folgen vor Beginn dieser Aufgabe.']
+        ],
+        note: 'Es gibt keine richtigen oder falschen Antworten.',
+        button: 'Start',
+        hint: 'oder drücken Sie die ENTER-Taste, um zu beginnen'
+    };
+    
+    var L = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
+    var TEXT = (L === 'de') ? TEXT_DE : TEXT_EN;
     
     // ---------- Reset globals ----------
     instr_done = false;
@@ -2272,7 +3105,7 @@ function InstructionsRoutineBegin(snapshot) {
         '#instr-card, #instr-card * {box-sizing:border-box;}' +
         '#instr-card p {margin:0;line-height:1.5;font-size:15px;overflow-wrap:anywhere;word-break:break-word;}' +
         '#instr-card .instr-phase {background:#2c2c2c;border-radius:6px;padding:14px 18px;margin-top:14px;}' +
-        '#instr-card .instr-phase h3 {font-size:16px;margin:0 0 6px 0;}' +
+        '#instr-card .instr-phase h3 {font-size:16px;margin:0 0 6px 0;overflow-wrap:anywhere;}' +
         '#instr-card .instr-hint {text-align:center;font-size:13px;color:#aaa;margin-top:10px;}';
     document.head.appendChild(inStyle);
     
@@ -3295,6 +4128,8 @@ function Scene_Presentation_TripleRoutineBegin(snapshot) {
     // Run 'Begin Routine' code from timer_2
     task_timer_start = globalClock.getTime();
     task_timer_duration = 40;
+    
+    applyLang(text_continue_triple);
     psychoJS.experiment.addData('Scene_Presentation_Triple.started', globalClock.getTime());
     Scene_Presentation_TripleMaxDuration = 40
     // keep track of which components have finished
@@ -3644,7 +4479,7 @@ function Scene_DescriptionRoutineEachFrame() {
         continueRoutine = true;
     }
     
-    hint_text.setText('Press ENTER to continue (' + text_length + '/50 characters)');
+    hint_text.setText(tr('desc_hint').replace('{n}', text_length));
     // check for quit (typically the Esc key)
     if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
       return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
@@ -3980,6 +4815,7 @@ function Face_RankingRoutineBegin(snapshot) {
     Face_RankingComponents.push(timer_text);
     Face_RankingComponents.push(finish_ranking_key);
     Face_RankingComponents.push(finish_ranking_text);
+    Face_RankingComponents.push(ranking_description);
     
     Face_RankingComponents.forEach( function(thisComponent) {
       if ('status' in thisComponent)
@@ -4414,12 +5250,6 @@ function Face_RankingRoutineEachFrame() {
       }
     }
     
-    // Run 'Each Frame' code from gate_finish_ranking
-    if (finish_ranking_key.keys === 'return' && !submit_allowed) {
-        finish_ranking_key.keys = [];
-        _finish_ranking_key_allKeys = [];
-        continueRoutine = true;
-    }
     
     // *finish_ranking_text* updates
     if (t >= 999 && finish_ranking_text.status === PsychoJS.Status.NOT_STARTED) {
@@ -4437,6 +5267,29 @@ function Face_RankingRoutineEachFrame() {
     if (finish_ranking_text.status === PsychoJS.Status.STARTED) {
       // update params
       finish_ranking_text.setText('Press ENTER to finish the ranking', false);
+    }
+    
+    // Run 'Each Frame' code from gate_finish_ranking
+    if (finish_ranking_key.keys === 'return' && !submit_allowed) {
+        finish_ranking_key.keys = [];
+        _finish_ranking_key_allKeys = [];
+        continueRoutine = true;
+    }
+    
+    applyLang(ranking_bar_left,  ranking_bar_right, finish_ranking_text);
+    
+    // *ranking_description* updates
+    if (t >= 0.0 && ranking_description.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      ranking_description.tStart = t;  // (not accounting for frame time here)
+      ranking_description.frameNStart = frameN;  // exact frame index
+      
+      ranking_description.setAutoDraw(true);
+    }
+    
+    
+    // if ranking_description is active this frame...
+    if (ranking_description.status === PsychoJS.Status.STARTED) {
     }
     
     // check for quit (typically the Esc key)
@@ -5661,7 +6514,8 @@ function explicit_measurementsRoutineBegin(snapshot) {
     explicit_measurementsMaxDurationReached = false;
     // update component parameters for each repeat
     // ---------- Texts (adjust here) ----------
-    var LABELS = {
+    // Keys (A_weiss, aggressiv, ...) stay identical in both languages, so the data columns match.
+    var LABELS_EN = {
         title: 'Ratings',
         instruction: 'Please estimate how strongly each characteristic applies to men of the two groups. ' +
                      'Click on a scale to answer (0 % = does not apply at all, 100 % = applies completely).',
@@ -5681,6 +6535,30 @@ function explicit_measurementsRoutineBegin(snapshot) {
         button: 'Continue',
         error: 'Please answer all questions.'
     };
+    
+    var LABELS_DE = {
+        title: 'Einschätzungen',
+        instruction: 'Bitte schätzen Sie ein, wie stark die jeweilige Eigenschaft auf Männer der beiden Gruppen zutrifft. ' +
+                     'Klicken Sie zum Antworten auf die Skala (0 % = trifft überhaupt nicht zu, 100 % = trifft völlig zu).',
+        groups: [
+            ['A_weiss', 'Gruppe A: Weiße Männer / Männer ohne Migrationshintergrund'],
+            ['B_arab',  'Gruppe B: Arabische / muslimische Männer']
+        ],
+        traits: [
+            ['aggressiv',    'aggressiv'],
+            ['gewalttaetig', 'gewalttätig'],
+            ['bedrohlich',   'bedrohlich'],
+            ['kriminell',    'kriminell'],
+            ['gefaehrlich',  'gefährlich']
+        ],
+        scaleMin: '0 %',
+        scaleMax: '100 %',
+        button: 'Weiter',
+        error: 'Bitte beantworten Sie alle Fragen.'
+    };
+    
+    var L = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
+    var LABELS = (L === 'de') ? LABELS_DE : LABELS_EN;
     var SHUFFLE_TRAITS = true;
     
     // ---------- Reset globals ----------
@@ -5911,6 +6789,9 @@ function explicit_measurementsRoutineEnd(snapshot) {
 
 
 var End_DemographicsMaxDurationReached;
+var demo_ethnicity;
+var demo_country_code;
+var demo_country_name;
 var End_DemographicsMaxDuration;
 var End_DemographicsComponents;
 function End_DemographicsRoutineBegin(snapshot) {
@@ -5927,6 +6808,46 @@ function End_DemographicsRoutineBegin(snapshot) {
     routineTimer.reset();
     End_DemographicsMaxDurationReached = false;
     // update component parameters for each repeat
+    // ---------- Texts (adjust here) ----------
+    var TEXT_DE = {
+        title: 'Demografische Angaben',
+        select: '-- Auswählen --',
+        ethnicity: 'Ethnische Herkunft',
+        ethOpts: [['white', 'Weiß'],
+                  ['middle_eastern', 'Naher Osten / Arabisch / Nordafrikanisch'],
+                  ['black', 'Schwarz / afrikanischer Herkunft'],
+                  ['asian', 'Asiatisch'],
+                  ['hispanic', 'Hispanisch / Lateinamerikanisch'],
+                  ['multiracial', 'Mehrere Herkünfte / gemischt'],
+                  ['prefer_not', 'Keine Angabe']],
+        country: 'In welchem Land leben Sie derzeit?',
+        next: 'Weiter',
+        error: 'Bitte beantworten Sie alle Fragen.'
+    };
+    var TEXT_EN = {
+        title: 'Demographics',
+        select: '-- Select --',
+        ethnicity: 'Ethnic background',
+        ethOpts: [['white', 'White / Caucasian'],
+                  ['middle_eastern', 'Middle Eastern / Arab / North African'],
+                  ['black', 'Black / African descent'],
+                  ['asian', 'Asian'],
+                  ['hispanic', 'Hispanic / Latino'],
+                  ['multiracial', 'Multiracial'],
+                  ['prefer_not', 'Prefer not to say']],
+        country: 'In which country do you currently reside?',
+        next: 'Continue',
+        error: 'Please answer all questions.'
+    };
+    var L = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
+    var T = (L === 'de') ? TEXT_DE : TEXT_EN;
+    
+    // ---------- Reset globals ----------
+    demo_ethnicity = '';
+    demo_country_code = '';
+    demo_country_name = '';
+    demo_done = false;
+    
     if (quickMode) {
         continueRoutine = false;
         demo_done = true;
@@ -5934,45 +6855,41 @@ function End_DemographicsRoutineBegin(snapshot) {
         // Hide the PsychoJS canvas temporarily
         psychoJS.window._renderer.view.style.display = 'none';
     
+        // ---------- Styles ----------
+        var d2Style = document.createElement('style');
+        d2Style.id = 'demo2-style';
+        d2Style.textContent =
+            '#demo2-card, #demo2-card * {box-sizing:border-box;}' +
+            '#demo2-card label {display:block;margin-bottom:8px;overflow-wrap:anywhere;word-break:break-word;}' +
+            '#demo2-card select {width:100%;padding:8px;font-size:16px;border-radius:4px;}' +
+            '#demo2-card p {overflow-wrap:anywhere;word-break:break-word;}';
+        document.head.appendChild(d2Style);
+    
+        // ---------- Build HTML ----------
+        var ethHtml = '<option value="">' + T.select + '</option>';
+        for (var e = 0; e < T.ethOpts.length; e++) {
+            ethHtml += '<option value="' + T.ethOpts[e][0] + '">' + T.ethOpts[e][1] + '</option>';
+        }
+    
         // Create overlay form
         var overlay = document.createElement('div');
-        overlay.id = 'demo-overlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
+        overlay.id = 'demo2-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
     
-        // global vars
-        demo_ethnicity = '';
-        demo_country_code = '';
-        demo_country_name = '';
-        demo_done = false;
-    
-        overlay.innerHTML = '\
-        <div style="background:#222;padding:40px;border-radius:8px;color:white;font-family:Arial;min-width:440px;max-width:520px;max-height:90vh;overflow-y:auto;">\
-          <h2 style="margin-top:0;">Demographics</h2>\
-        \
-          <div style="margin-bottom:20px;">\
-            <label style="display:block;margin-bottom:8px;">Ethnic background</label>\
-            <select id="demo-race" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-              <option value="">-- Select --</option>\
-              <option value="white">White / Caucasian</option>\
-              <option value="middle_eastern">Middle Eastern / Arab / North African</option>\
-              <option value="black">Black / African descent</option>\
-              <option value="asian">Asian</option>\
-              <option value="hispanic">Hispanic / Latino</option>\
-              <option value="multiracial">Multiracial</option>\
-              <option value="prefer_not">Prefer not to say</option>\
-            </select>\
-          </div>\
-        \
-          <div style="margin-bottom:30px;">\
-            <label style="display:block;margin-bottom:8px;">In which country do you currently reside?</label>\
-            <select id="demo-country" style="width:100%;padding:8px;font-size:16px;border-radius:4px;">\
-              <option value="">-- Select --</option>\
-            </select>\
-          </div>\
-        \
-          <button id="demo-submit" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Continue</button>\
-          <p id="demo-error" style="color:red;display:none;margin-top:10px;">Please answer all questions.</p>\
-        </div>';
+        overlay.innerHTML =
+            '<div id="demo2-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,520px);max-height:94vh;overflow-y:auto;">' +
+              '<h2 style="margin-top:0;">' + T.title + '</h2>' +
+              '<div style="margin-bottom:20px;">' +
+                '<label>' + T.ethnicity + '</label>' +
+                '<select id="demo-race">' + ethHtml + '</select>' +
+              '</div>' +
+              '<div style="margin-bottom:30px;">' +
+                '<label>' + T.country + '</label>' +
+                '<select id="demo-country"><option value="">' + T.select + '</option></select>' +
+              '</div>' +
+              '<button id="demo-submit" style="width:100%;padding:12px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + T.next + '</button>' +
+              '<p id="demo-error" style="color:red;display:none;margin-top:10px;">' + T.error + '</p>' +
+            '</div>';
     
         document.body.appendChild(overlay);
     
@@ -5985,24 +6902,31 @@ function End_DemographicsRoutineBegin(snapshot) {
             'SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ ' +
             'UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW').split(' ');
     
-        // Language of the country names: 'en' -> "Germany", 'de' -> "Deutschland"
-        var countryLocale = 'en';
+        // Names are shown in the participant's language (L), but always saved in English (comparable data)
+        var countryLocale = L;
     
         var displayNames = null;
+        var displayNamesEn = null;
         try {
             displayNames = new Intl.DisplayNames([countryLocale], {type: 'region'});
-        } catch (e) {
+            displayNamesEn = new Intl.DisplayNames(['en'], {type: 'region'});
+        } catch (err) {
             displayNames = null;
+            displayNamesEn = null;
         }
     
         var countries = [];
+        var englishNames = {};
         for (var c = 0; c < countryCodes.length; c++) {
             var code = countryCodes[c];
             var name = code;
+            var nameEn = code;
             try {
-                if (displayNames) name = displayNames.of(code) || code;
-            } catch (e) {}
+                if (displayNames) { name = displayNames.of(code) || code; }
+                if (displayNamesEn) { nameEn = displayNamesEn.of(code) || code; }
+            } catch (err2) {}
             countries.push({code: code, name: name});
+            englishNames[code] = nameEn;
         }
     
         countries.sort(function(a, b) {
@@ -6020,8 +6944,7 @@ function End_DemographicsRoutineBegin(snapshot) {
         // --- submit ---
         document.getElementById('demo-submit').addEventListener('click', function() {
             var race = document.getElementById('demo-race').value;
-            var countrySel = document.getElementById('demo-country');
-            var countryCode = countrySel.value;
+            var countryCode = countrySelect.value;
     
             if (!race || !countryCode) {
                 document.getElementById('demo-error').style.display = 'block';
@@ -6030,10 +6953,11 @@ function End_DemographicsRoutineBegin(snapshot) {
     
             demo_ethnicity = race;
             demo_country_code = countryCode;
-            demo_country_name = countrySel.options[countrySel.selectedIndex].text;
+            demo_country_name = englishNames[countryCode];   // always English in the data
     
             // clean up
             document.body.removeChild(overlay);
+            document.head.removeChild(d2Style);
             psychoJS.window._renderer.view.style.display = 'block';
             demo_done = true;
         });
@@ -6124,6 +7048,12 @@ function End_DemographicsRoutineEnd(snapshot) {
         psychoJS.experiment.addData('country_name', demo_country_name);
         // the Routine "Questionnaire" was not non-slip safe, so reset the non-slip timer
         routineTimer.reset();
+        // safety cleanup in case the routine ended early
+        var d2Ov = document.getElementById('demo2-overlay');
+        if (d2Ov) { document.body.removeChild(d2Ov); }
+        var d2St = document.getElementById('demo2-style');
+        if (d2St) { document.head.removeChild(d2St); }
+        psychoJS.window._renderer.view.style.display = 'block';
     }
     // the Routine "End_Demographics" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
@@ -6140,6 +7070,8 @@ function End_DemographicsRoutineEnd(snapshot) {
 var ExitMaxDurationReached;
 var debrief_done;
 var debrief_rt;
+var sona_opened;
+var sona_copied;
 var saveOk;
 var ExitMaxDuration;
 var ExitComponents;
@@ -6158,7 +7090,7 @@ function ExitRoutineBegin(snapshot) {
     ExitMaxDurationReached = false;
     // update component parameters for each repeat
     // ---------- Texts (adjust here) ----------
-    var TEXT = {
+    var TEXT_EN = {
         title: 'Debriefing',
         thanks: 'Thank you for taking part in this study!',
         sections: [
@@ -6168,13 +7100,13 @@ function ExitRoutineBegin(snapshot) {
             ['What you did',
              'You saw 20 short scenes, 10 with a crime-related context and 10 with a neutral one. ' +
              'For each scene, you described the face of the person shown and ranked six faces by how likely they matched the scene. ' +
-             'You also completed a sorting task, the Implicit Association Test (IAT), which uses your response speed to measure how strongly concepts are automatically associated with each other. ' +
+             'You also completed an association task, the Implicit Association Test (IAT), which uses your response speed to measure how strongly concepts are automatically associated with each other. ' +
              'At the end, you rated several characteristics for two groups of men.'],
             ['What we are looking for',
              'Some biases are <b>explicit</b>: people are aware of them and can report them, as in the final ratings. ' +
              'Others are <b>implicit</b> (also called <i>unknown</i> or <i>unconscious</i> biases): they work automatically, and people often don\'t notice them, ' +
              'yet they can still influence decisions, such as which face seems to fit a crime scene. ' +
-             'By comparing your rankings and descriptions with your ratings, we can see whether implicit and explicit biases match and whether the scene context changes which faces people choose. ' +
+             'By comparing your rankings, descriptions and IAT results with your ratings, we can see whether implicit and explicit biases match and whether the scene context changes which faces people choose. ' +
              'The faces were selected to look as non-stereotypical as possible, so differences in the rankings cannot be explained by the faces alone.']
         ],
         importantTitle: 'Important to know',
@@ -6183,17 +7115,86 @@ function ExitRoutineBegin(snapshot) {
             'There are <b>no right or wrong answers</b>, and your results are not evaluated individually.',
             'Your data is stored <b>anonymously</b> under a randomly generated participant code.'
         ],
-        button: 'Finish'
+        button: 'Complete participation',
+        buttonNext: 'Continue',
+        sonaTitle: 'Receive your participation credit',
+        sonaIntro: 'To receive your participation credit, please open the link below. It confirms your participation in Sona Systems and contains your participant code.',
+        sonaOpenLink: 'Open link in a new tab',
+        sonaCopy: 'Copy link',
+        sonaCopied: 'Copied!',
+        sonaCopyFailed: 'Copy failed – the link is selected, please copy it manually',
+        sonaHint: 'When you click “Complete participation”, the link opens automatically in a new tab. If nothing opens, please use the link above.',
+        sonaBlocked: 'Your browser blocked the new tab. Please click the link above first, then press the button again.',
+        saveWait: 'Saving your data… please do not close this window.',
+        saveOk: 'Your data has been saved. You can now complete the study.',
+        saveFail: 'The final save did not complete. You can still complete the study.'
     };
     
+    var TEXT_DE = {
+        title: 'Abschlussinformation (Debriefing)',
+        thanks: 'Vielen Dank für Ihre Teilnahme an dieser Studie!',
+        sections: [
+            ['Worum es in dieser Studie geht',
+             'Wir haben untersucht, ob <b>Stereotype</b> und <b>Verzerrungen (Biases)</b> beeinflussen, wie Menschen alltägliche Situationen interpretieren. ' +
+             'Ein <i>Bias</i> ist eine systematische Tendenz, Menschen oder Situationen auf eine bestimmte Weise zu beurteilen, oft aufgrund der Gruppenzugehörigkeit, zum Beispiel Geschlecht, Herkunft oder Religion.'],
+            ['Was Sie getan haben',
+             'Sie haben 20 kurze Szenen gesehen, 10 mit einem kriminalitätsbezogenen Kontext und 10 mit einem neutralen. ' +
+             'Zu jeder Szene haben Sie das Gesicht der gezeigten Person beschrieben und sechs Gesichter danach in eine Rangfolge gebracht, wie wahrscheinlich sie zur Szene passen. ' +
+             'Außerdem haben Sie eine Assoziationsaufgabe bearbeitet, den Impliziten Assoziationstest (IAT), der anhand Ihrer Reaktionsgeschwindigkeit misst, wie stark Begriffe automatisch miteinander assoziiert werden. ' +
+             'Am Ende haben Sie mehrere Eigenschaften für zwei Gruppen von Männern eingeschätzt.'],
+            ['Wonach wir suchen',
+             'Manche Biases sind <b>explizit</b>: Menschen sind sich ihrer bewusst und können darüber Auskunft geben, wie bei den abschließenden Einschätzungen. ' +
+             'Andere sind <b>implizit</b> (auch <i>unbekannte</i> oder <i>unbewusste</i> Biases genannt): Sie wirken automatisch, und Menschen bemerken sie oft nicht, ' +
+             'können aber dennoch Entscheidungen beeinflussen, etwa welches Gesicht zu einer Kriminalitätsszene zu passen scheint. ' +
+             'Indem wir Ihre Rangfolgen, Beschreibungen und IAT-Ergebnisse mit Ihren Einschätzungen vergleichen, können wir untersuchen, ob implizite und explizite Biases übereinstimmen und ob der Kontext einer Szene beeinflusst, welche Gesichter Menschen auswählen. ' +
+             'Die Gesichter wurden so ausgewählt, dass sie möglichst wenig stereotyp aussehen. Unterschiede in den Rangfolgen lassen sich daher nicht allein durch die Gesichter erklären.']
+        ],
+        importantTitle: 'Wichtig zu wissen',
+        bullets: [
+            'Biases zu haben ist <b>normal</b>. Sie entstehen als Nebenprodukt davon, wie das Gehirn aus Umwelt, Medien und Kultur lernt, und sagen nichts über Ihren Charakter aus.',
+            'Es gibt <b>keine richtigen oder falschen Antworten</b>, und Ihre Ergebnisse werden nicht individuell ausgewertet.',
+            'Ihre Daten werden <b>anonym</b> unter einem zufällig erzeugten Teilnahmecode gespeichert.'
+        ],
+        button: 'Teilnahme abschließen',
+        buttonNext: 'Weiter',
+        sonaTitle: 'Teilnahmeincentive erhalten',
+        sonaIntro: 'Um Ihr Teilnahmeincentive zu erhalten, öffnen Sie bitte den folgenden Link. Er bestätigt Ihre Teilnahme in Sona Systems und enthält Ihren Teilnahmecode.',
+        sonaOpenLink: 'Link in neuem Tab öffnen',
+        sonaCopy: 'Link kopieren',
+        sonaCopied: 'Kopiert!',
+        sonaCopyFailed: 'Kopieren fehlgeschlagen – der Link ist markiert, bitte manuell kopieren',
+        sonaHint: 'Wenn Sie auf „Teilnahme abschließen“ klicken, öffnet sich der Link automatisch in einem neuen Tab. Falls sich nichts öffnet, nutzen Sie bitte den Link oben.',
+        sonaBlocked: 'Ihr Browser hat den neuen Tab blockiert. Bitte klicken Sie zuerst auf den Link oben und drücken Sie dann erneut auf die Schaltfläche.',
+        saveWait: 'Ihre Daten werden gespeichert … bitte schließen Sie dieses Fenster nicht.',
+        saveOk: 'Ihre Daten wurden gespeichert. Sie können die Studie jetzt abschließen.',
+        saveFail: 'Die abschließende Speicherung wurde nicht vollständig durchgeführt. Sie können die Studie dennoch abschließen.'
+    };
+    
+    var L = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
+    var TEXT = (L === 'de') ? TEXT_DE : TEXT_EN;
+    
     // ---------- Status texts ----------
-    var SAVE_MSG_WAIT = 'Saving your data… please do not close this window.';
-    var SAVE_MSG_OK   = 'Your data has been saved. You can now finish the study.';
-    var SAVE_MSG_FAIL = 'The final save did not complete. You can still finish the study.';
+    var SAVE_MSG_WAIT = TEXT.saveWait;
+    var SAVE_MSG_OK   = TEXT.saveOk;
+    var SAVE_MSG_FAIL = TEXT.saveFail;
+    
+    // ---------- Settings ----------
+    var SHOW_SONA_LINK = use_sona;
+    var SONA_BASE = 'https://fernuni-hagen.sona-systems.com/webstudy_credit.aspx?experiment_id=1152&credit_token=2c54653912d442588f16e2e2a0ee7761&survey_code=';
+    var sonaCode = participant_code || 'UNKNOWN';
+    var sonaUrl = SONA_BASE + encodeURIComponent(sonaCode);
+    
+    // ---------- Fullscreen warning off for the debriefing ----------
+    if (window.fsGuard) {
+        if (window.fsGuard.disable) { window.fsGuard.disable(); }
+        else { window.fsGuard.active = false; }
+    }
     
     // ---------- Reset globals ----------
     debrief_done = false;
     debrief_rt = null;
+    sona_opened = false;
+    sona_copied = false;
     
     // Hide the PsychoJS canvas temporarily
     psychoJS.window._renderer.view.style.display = 'none';
@@ -6208,7 +7209,9 @@ function ExitRoutineBegin(snapshot) {
         '#debrief-card p {margin:0;line-height:1.5;font-size:15px;}' +
         '#debrief-card ul {margin:0;padding-left:22px;}' +
         '#debrief-card li {line-height:1.5;font-size:15px;margin-bottom:8px;}' +
-        '#debrief-submit:disabled {opacity:0.4;cursor:not-allowed;}';
+        '#debrief-card button:disabled {opacity:0.4;cursor:not-allowed;}' +
+        '#debrief-card .debrief-row {display:flex;gap:12px;flex-wrap:wrap;}' +
+        '#debrief-card .debrief-row a, #debrief-card .debrief-row button {flex:1 1 180px;padding:12px;background:#444;color:white;border:none;border-radius:4px;font-size:15px;cursor:pointer;text-align:center;text-decoration:none;font-family:Arial;}';
     document.head.appendChild(dbStyle);
     
     // ---------- Overlay ----------
@@ -6217,6 +7220,7 @@ function ExitRoutineBegin(snapshot) {
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
     
     var html = '<div id="debrief-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,700px);max-height:94vh;overflow-y:auto;">' +
+        '<div id="debrief-page1">' +
         '<h2 style="margin-top:0;">' + TEXT.title + '</h2>' +
         '<p style="font-weight:bold;font-size:17px;">' + TEXT.thanks + '</p>';
     
@@ -6230,11 +7234,31 @@ function ExitRoutineBegin(snapshot) {
     }
     html += '</ul>' +
         '<p id="debrief-status" style="margin-top:22px;font-size:14px;color:#aaa;text-align:center;">' + SAVE_MSG_WAIT + '</p>' +
-        '<button id="debrief-submit" disabled style="width:100%;padding:12px;margin-top:14px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + TEXT.button + '</button>' +
+        '<button id="debrief-submit" disabled style="width:100%;padding:12px;margin-top:14px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' +
+            (SHOW_SONA_LINK ? TEXT.buttonNext : TEXT.button) + '</button>' +
+        '</div>' +
+    
+        '<div id="debrief-page2" style="display:none;">' +
+        '<h2 style="margin-top:0;">' + TEXT.sonaTitle + '</h2>' +
+        '<p>' + TEXT.sonaIntro + '</p>' +
+        '<div id="debrief-sonaurl" style="background:#111;padding:14px;border-radius:4px;margin:18px 0 12px 0;font-family:monospace;font-size:13px;overflow-wrap:anywhere;word-break:break-all;"></div>' +
+        '<div class="debrief-row">' +
+            '<a id="debrief-sonalink" target="_blank" rel="noopener noreferrer">' + TEXT.sonaOpenLink + '</a>' +
+            '<button id="debrief-copy">' + TEXT.sonaCopy + '</button>' +
+        '</div>' +
+        '<p style="margin-top:16px;font-size:13px;color:#aaa;">' + TEXT.sonaHint + '</p>' +
+        '<p id="debrief-blocked" style="display:none;margin-top:12px;color:#ff8080;font-size:14px;">' + TEXT.sonaBlocked + '</p>' +
+        '<button id="debrief-finish" style="width:100%;padding:12px;margin-top:20px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + TEXT.button + '</button>' +
+        '</div>' +
         '</div>';
     
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
+    
+    // Fill link (textContent / href, so & is handled correctly)
+    var urlBox = document.getElementById('debrief-sonaurl');
+    urlBox.textContent = sonaUrl;
+    document.getElementById('debrief-sonalink').href = sonaUrl;
     
     // ---------- Helpers ----------
     function withTimeout(promise, ms) {
@@ -6329,12 +7353,79 @@ function ExitRoutineBegin(snapshot) {
     btnEl.disabled = false;
     
     var dbStart = performance.now();
-    btnEl.addEventListener('click', function() {
+    var cardEl = document.getElementById('debrief-card');
+    
+    function endDebrief() {
+        if (debrief_done) { return; }
         debrief_rt = (performance.now() - dbStart) / 1000;
         document.body.removeChild(overlay);
         document.head.removeChild(dbStyle);
         psychoJS.window._renderer.view.style.display = 'block';
         debrief_done = true;
+    }
+    
+    // Page 1 -> page 2 (or finish directly if no Sona page)
+    btnEl.addEventListener('click', function() {
+        if (SHOW_SONA_LINK) {
+            document.getElementById('debrief-page1').style.display = 'none';
+            document.getElementById('debrief-page2').style.display = 'block';
+            cardEl.scrollTop = 0;
+        } else {
+            endDebrief();
+        }
+    });
+    
+    // Page 2: link clicked manually
+    document.getElementById('debrief-sonalink').addEventListener('click', function() {
+        sona_opened = true;
+        document.getElementById('debrief-blocked').style.display = 'none';
+    });
+    
+    // Page 2: copy link
+    document.getElementById('debrief-copy').addEventListener('click', function() {
+        var btn = this;
+        var label = TEXT.sonaCopy;
+        function selectUrl() {
+            var range = document.createRange();
+            range.selectNodeContents(urlBox);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(sonaUrl)
+                .then(function() { sona_copied = true; btn.textContent = TEXT.sonaCopied; })
+                .catch(function() { selectUrl(); btn.textContent = TEXT.sonaCopyFailed; });
+        } else {
+            selectUrl();
+            btn.textContent = TEXT.sonaCopyFailed;
+        }
+        setTimeout(function() { btn.textContent = label; }, 3000);
+    });
+    
+    // Page 2: finish (opens the Sona link in a new tab, then ends the study)
+    document.getElementById('debrief-finish').addEventListener('click', function() {
+        if (!sona_opened) {
+            // leave full screen first, otherwise the new tab can behave oddly
+            try {
+                if (document.fullscreenElement) {
+                    var fp = document.exitFullscreen();
+                    if (fp && fp.catch) { fp.catch(function() {}); }
+                }
+            } catch (e) {}
+    
+            var w = window.open(sonaUrl, '_blank');
+            if (w) {
+                try { w.opener = null; } catch (e2) {}
+                sona_opened = true;
+                endDebrief();
+            } else {
+                // popup blocked: keep the page open, participant uses the link manually
+                document.getElementById('debrief-blocked').style.display = 'block';
+            }
+        } else {
+            endDebrief();
+        }
     });
     psychoJS.experiment.addData('Exit.started', globalClock.getTime());
     ExitMaxDuration = null
