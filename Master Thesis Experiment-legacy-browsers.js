@@ -14,6 +14,10 @@ let PILOTING = util.getUrlParameters().has('__pilotToken');
 var lang = '';
 var lang_done = false;
 var lang_rt = null;
+
+// IAT Options
+var iat_block_order = "resources/iat/blocks_order.xlsx";
+var iat_instructs = "resources/iat/instructs.xlsx";
 // ?SONA=TRUE (or 1 / yes) in the study URL turns the Sona parts on. Name and value are case-insensitive.
 
 function urlFlag(name) {
@@ -73,7 +77,8 @@ var TX = {
         continue_hint: 'Press ENTER to continue',
         text_continue_triple: 'Press ENTER to continue',
         finish_ranking_text: 'Press ENTER to continue',        
-        desc_hint: 'Press ENTER to continue ({n}/at least 50 characters)'
+        desc_hint: 'Press ENTER to continue ({n}/at least 50 characters)',
+        main_ready_msg: "Take note of the categories below. Position your index fingers. Press the space bar (or one of the green buttons) to begin"
     },
     de: {
         task_description: 'Beschreiben Sie kurz das Gesicht der Person, die Sie gesehen haben. Schreiben Sie mindestens 50 Zeichen, um fortzufahren.',
@@ -85,7 +90,8 @@ var TX = {
         continue_hint: 'Drücken Sie ENTER, um fortzufahren',
         text_continue_triple: 'Drücken Sie ENTER, um fortzufahren',
         finish_ranking_text: 'Drücken Sie ENTER, um fortzufahren',
-        desc_hint: 'Drücken Sie ENTER, um fortzufahren ({n}/mindestens 50 Zeichen)'
+        desc_hint: 'Drücken Sie ENTER, um fortzufahren ({n}/mindestens 50 Zeichen)',
+        main_ready_msg: "Beachten Sie die folgenden Kategorien. Bringen Sie Ihre Zeigefinger in Position. Drücken Sie die Leertaste (oder eine der grünen Tasten) um zu beginnen."
     }
 };
 
@@ -408,15 +414,14 @@ psychoJS.start({
   expInfo: expInfo,
   resources: [
     // resources:
-    {'name': 'resources/iat/instructs.xlsx', 'path': 'resources/iat/instructs.xlsx'},
-    {'name': 'resources/iat/blocks_order.xlsx', 'path': 'resources/iat/blocks_order.xlsx'},
-    {'name': 'resources/iat/pos_neg_train.xlsx', 'path': 'resources/iat/pos_neg_train.xlsx'},
-    {'name': 'resources/iat/stimuli/blank.png', 'path': 'resources/iat/stimuli/blank.png'},
-    {'name': 'resources/iat/cong_train.xlsx', 'path': 'resources/iat/cong_train.xlsx'},
-    {'name': 'resources/iat/cong_test.xlsx', 'path': 'resources/iat/cong_test.xlsx'},
-    {'name': 'resources/iat/incong_train.xlsx', 'path': 'resources/iat/incong_train.xlsx'},
-    {'name': 'resources/iat/incong_test.xlsx', 'path': 'resources/iat/incong_test.xlsx'},
     {'name': 'default.png', 'path': 'https://pavlovia.org/assets/default/default.png'},
+    {'name': 'resources/iat/blocks_order_en.xlsx', 'path': 'resources/iat/blocks_order_en.xlsx'},
+    {'name': 'resources/iat/cong_test_en.xlsx', 'path': 'resources/iat/cong_test_en.xlsx'},
+    {'name': 'resources/iat/cong_train_en.xlsx', 'path': 'resources/iat/cong_train_en.xlsx'},
+    {'name': 'resources/iat/incong_test_en.xlsx', 'path': 'resources/iat/incong_test_en.xlsx'},
+    {'name': 'resources/iat/incong_train_en.xlsx', 'path': 'resources/iat/incong_train_en.xlsx'},
+    {'name': 'resources/iat/instructs_en.xlsx', 'path': 'resources/iat/instructs_en.xlsx'},
+    {'name': 'resources/iat/pos_neg_train_en.xlsx', 'path': 'resources/iat/pos_neg_train_en.xlsx'},
     {'name': 'resources/conditions/condition_quick_0.xlsx', 'path': 'resources/conditions/condition_quick_0.xlsx'},
     {'name': 'resources/conditions/condition_quick_1.xlsx', 'path': 'resources/conditions/condition_quick_1.xlsx'},
     {'name': 'resources/conditions/condition_quick_2.xlsx', 'path': 'resources/conditions/condition_quick_2.xlsx'},
@@ -1901,6 +1906,8 @@ function Choose_LanguageRoutineEachFrame() {
 }
 
 
+var iat_block_order;
+var iat_instructs;
 function Choose_LanguageRoutineEnd(snapshot) {
   return async function () {
     //--- Ending Routine 'Choose_Language' ---
@@ -1911,6 +1918,11 @@ function Choose_LanguageRoutineEnd(snapshot) {
     });
     psychoJS.experiment.addData('Choose_Language.stopped', globalClock.getTime());
     if (lang !== 'de' && lang !== 'en') { lang = 'en'; }   // fallback
+    
+    if (lang == 'en') {
+        iat_block_order = "resources/iat/blocks_order_en.xlsx";
+        iat_instructs = "resources/iat/instructs_en.xlsx";
+    }
     
     psychoJS.experiment.addData('language', lang);
     psychoJS.experiment.addData('language_rt', lang_rt);
@@ -3054,7 +3066,7 @@ function InstructionsRoutineBegin(snapshot) {
         intro: 'In this study, you will complete a series of 20 trials consisting of three phases.',
         phases: [
             ['Phase 1 – Scene Presentation',
-             'You will first see a short scene description together with an image.'],
+             'You will first see two pictures describing a scene and one picture of a face.'],
             ['Phase 2 – Face Description',
              'After viewing the scene, you will be asked to briefly describe the face of the person shown in the scene using your own words.'],
             ['Phase 3 – Face Ranking',
@@ -3073,7 +3085,7 @@ function InstructionsRoutineBegin(snapshot) {
         intro: 'In dieser Studie bearbeiten Sie 20 Durchgänge, die jeweils aus drei Phasen bestehen.',
         phases: [
             ['Phase 1 – Szenenpräsentation',
-             'Zunächst sehen Sie eine kurze Szenenbeschreibung zusammen mit einem Bild.'],
+             'Zunächst sehen Sie zwei Bilder einer zusammenhängenden Szene und ein Bild von einem Gesicht.'],
             ['Phase 2 – Gesichtsbeschreibung',
              'Nach der Szene werden Sie gebeten, das Gesicht der in der Szene gezeigten Person kurz in eigenen Worten zu beschreiben.'],
             ['Phase 3 – Gesichter-Rangfolge',
@@ -3461,7 +3473,7 @@ function Scene_LoopLoopBegin(Scene_LoopLoopScheduler, snapshot) {
     // set up handler to look after randomisation of conditions etc
     Scene_Loop = new TrialHandler({
       psychoJS: psychoJS,
-      nReps: 1, method: TrialHandler.Method.SEQUENTIAL,
+      nReps: 0, method: TrialHandler.Method.SEQUENTIAL,
       extraInfo: expInfo, originPath: undefined,
       trialList: conditionsFile,
       seed: undefined, name: 'Scene_Loop'
@@ -3607,7 +3619,7 @@ function IAT_instruction_pagesLoopBegin(IAT_instruction_pagesLoopScheduler, snap
       psychoJS: psychoJS,
       nReps: 1, method: TrialHandler.Method.SEQUENTIAL,
       extraInfo: expInfo, originPath: undefined,
-      trialList: 'resources/iat/instructs.xlsx',
+      trialList: iat_instructs,
       seed: undefined, name: 'IAT_instruction_pages'
     });
     psychoJS.experiment.addLoop(IAT_instruction_pages); // add the loop to the experiment
@@ -3669,7 +3681,7 @@ function IAT_blocksLoopBegin(IAT_blocksLoopScheduler, snapshot) {
       psychoJS: psychoJS,
       nReps: 1, method: TrialHandler.Method.SEQUENTIAL,
       extraInfo: expInfo, originPath: undefined,
-      trialList: 'resources/iat/blocks_order.xlsx',
+      trialList: iat_block_order,
       seed: undefined, name: 'IAT_blocks'
     });
     psychoJS.experiment.addLoop(IAT_blocks); // add the loop to the experiment
@@ -5781,6 +5793,7 @@ function IAT_readyRoutineBegin(snapshot) {
     ready_done.keys = undefined;
     ready_done.rt = undefined;
     _ready_done_allKeys = [];
+    applyLang(main_ready_msg);
     psychoJS.experiment.addData('IAT_ready.started', globalClock.getTime());
     IAT_readyMaxDuration = null
     // keep track of which components have finished
