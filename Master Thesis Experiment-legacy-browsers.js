@@ -33,6 +33,19 @@ function urlFlag(name) {
 }
 
 var use_sona = urlFlag('sona');
+
+
+function urlParam(name) {
+    var result = '';
+    var params = new URLSearchParams(window.location.search);
+    params.forEach(function(value, key) {
+        if (key.toLowerCase() === name.toLowerCase()) { result = value; }
+    });
+    return result;
+}
+
+// Sona passes its own survey code as ?participant=%SURVEY_CODE%
+var sona_survey_code = urlParam('participant');
 // Consent
 var consent_given = false;
 var consent_declined = false;
@@ -66,7 +79,7 @@ var demo_country_name = '';
 var TX = {
     en: {
         // face description routine
-        task_description: 'Give a short description of the face of the person that you saw. Write at least 50 characters to proceed.',
+        task_description: 'Whats your overall impression of the person & what is she doing? Write atleast 50 characters to continue.',
 
         // ranking routine
         ranking_bar_left: '◄ Most likely',
@@ -81,7 +94,7 @@ var TX = {
         main_ready_msg: "Take note of the categories below. Position your index fingers. Press the space bar (or one of the green buttons) to begin"
     },
     de: {
-        task_description: 'Beschreiben Sie kurz das Gesicht der Person, die Sie gesehen haben. Schreiben Sie mindestens 50 Zeichen, um fortzufahren.',
+        task_description: 'Wie ist Ihr Gesamteindruck von dieser Person und was macht sie gerade? Schreiben Sie mindestens 50 Zeichen, um fortzufahren.',
 
         ranking_bar_left: '◄ Am wahrscheinlichsten',
         ranking_bar_right: 'Am unwahrscheinlichsten ►',
@@ -1039,7 +1052,7 @@ async function experimentInit() {
   task_description = new visual.TextStim({
     win: psychoJS.window,
     name: 'task_description',
-    text: 'Give a short description of the face of the person that you saw. Write atleast 50 characters to proceed.',
+    text: 'Whats your overall impression of the person & what is she doing?',
     font: 'Arial',
     units: undefined, 
     pos: [0, 0.3], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
@@ -1687,11 +1700,6 @@ function Quick_ModeRoutineEachFrame() {
     if (quickModeChoiceDone) {
         continueRoutine = false;
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -1878,11 +1886,6 @@ function Choose_LanguageRoutineEachFrame() {
     if (lang_done) {
         continueRoutine = false;
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -1970,7 +1973,7 @@ function Check_ConsentRoutineBegin(snapshot) {
     Check_ConsentMaxDurationReached = false;
     // update component parameters for each repeat
     // ---------- Settings (adjust here) ----------
-    var PROJECT_TITLE = '[PROJECT TITLE – Whats the exact title?]';
+    var PROJECT_TITLE = 'How good are you at remembering faces?';
     var PROJECT_ID = '1152';
     var SHOW_SONA_PAGE = use_sona;
     
@@ -1992,7 +1995,7 @@ function Check_ConsentRoutineBegin(snapshot) {
     var TEXT_DE = {
         title: 'Einwilligungserklärung',
         headRows: [
-            ['Projekttitel', PROJECT_TITLE],
+            ['Projekttitel', 'Wie gut kannst du dich an Gesichter erinnern?'],
             ['Projekt-ID', PROJECT_ID],
             ['Lehrgebiet', 'Psychologische Methodenlehre und Evaluation'],
             ['Projektverantwortliche Person', 'Dr. Marleen Stelter']
@@ -2361,11 +2364,6 @@ function Check_ConsentRoutineEachFrame() {
     if (consent_done) {
         continueRoutine = false;
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -2586,11 +2584,6 @@ function Participant_CodeRoutineEachFrame() {
     if (pcode_done) {
         continueRoutine = false;
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -2965,11 +2958,6 @@ function DemographicsRoutineEachFrame() {
     if (demo_done) {
         continueRoutine = false;
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -3238,11 +3226,6 @@ function InstructionsRoutineEachFrame() {
     if (instr_done) {
         continueRoutine = false;
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -3415,11 +3398,6 @@ function Condition_LoadingRoutineEachFrame() {
         return Scheduler.Event.NEXT;
     }
     return Scheduler.Event.FLIP_REPEAT;
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -3892,11 +3870,6 @@ function load_scene_picturesRoutineEachFrame() {
     if (text_placeholder6.status === PsychoJS.Status.STARTED) {
     }
     
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -4296,11 +4269,6 @@ function Scene_Presentation_TripleRoutineEachFrame() {
       timer_text_2.setText(`${seconds}`, false);
     }
     
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -4492,11 +4460,7 @@ function Scene_DescriptionRoutineEachFrame() {
     }
     
     hint_text.setText(tr('desc_hint').replace('{n}', text_length));
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
+    applyLang(task_description)
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -4627,11 +4591,6 @@ function load_scene_facesRoutineEachFrame() {
     if (facesReady) {
         continueRoutine = false;
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -5304,11 +5263,6 @@ function Face_RankingRoutineEachFrame() {
     if (ranking_description.status === PsychoJS.Status.STARTED) {
     }
     
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -5431,11 +5385,6 @@ function Save_Interim_ResultsRoutineEachFrame() {
     t = Save_Interim_ResultsClock.getTime();
     frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
     // update/draw components on each frame
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -5706,11 +5655,6 @@ function IAT_instructionsRoutineEachFrame() {
         }
       }
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -5975,11 +5919,6 @@ function IAT_readyRoutineEachFrame() {
         // a response ends the routine
         continueRoutine = false;
       }
-    }
-    
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
     }
     
     // check if the Routine should terminate
@@ -6274,11 +6213,6 @@ function IAT_trialRoutineEachFrame() {
     if (trial_label_right.status === PsychoJS.Status.STARTED) {
     }
     
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -6450,11 +6384,6 @@ function IAT_feedbackRoutineEachFrame() {
       // update status
       feedback_msg.status = PsychoJS.Status.FINISHED;
       feedback_msg.setAutoDraw(false);
-    }
-    
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
     }
     
     // check if the Routine should terminate
@@ -6739,11 +6668,6 @@ function explicit_measurementsRoutineEachFrame() {
     if (expl_done) {
         continueRoutine = false;
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -7015,11 +6939,6 @@ function End_DemographicsRoutineEachFrame() {
     if (demo_done) {
         continueRoutine = false;
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -7081,6 +7000,7 @@ function End_DemographicsRoutineEnd(snapshot) {
 
 
 var ExitMaxDurationReached;
+var sonaCode;
 var debrief_done;
 var debrief_rt;
 var sona_opened;
@@ -7140,7 +7060,8 @@ function ExitRoutineBegin(snapshot) {
         sonaBlocked: 'Your browser blocked the new tab. Please click the link above first, then press the button again.',
         saveWait: 'Saving your data… please do not close this window.',
         saveOk: 'Your data has been saved. You can now complete the study.',
-        saveFail: 'The final save did not complete. You can still complete the study.'
+        saveFail: 'The final save did not complete. You can still complete the study.',
+        sonaRequired: 'Please copy the link or open it once to continue.',
     };
     
     var TEXT_DE = {
@@ -7180,7 +7101,8 @@ function ExitRoutineBegin(snapshot) {
         sonaBlocked: 'Ihr Browser hat den neuen Tab blockiert. Bitte klicken Sie zuerst auf den Link oben und drücken Sie dann erneut auf die Schaltfläche.',
         saveWait: 'Ihre Daten werden gespeichert … bitte schließen Sie dieses Fenster nicht.',
         saveOk: 'Ihre Daten wurden gespeichert. Sie können die Studie jetzt abschließen.',
-        saveFail: 'Die abschließende Speicherung wurde nicht vollständig durchgeführt. Sie können die Studie dennoch abschließen.'
+        saveFail: 'Die abschließende Speicherung wurde nicht vollständig durchgeführt. Sie können die Studie dennoch abschließen.',
+        sonaRequired: 'Bitte kopieren Sie den Link oder öffnen Sie ihn einmal, um fortzufahren.',
     };
     
     var L = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
@@ -7194,8 +7116,16 @@ function ExitRoutineBegin(snapshot) {
     // ---------- Settings ----------
     var SHOW_SONA_LINK = use_sona;
     var SONA_BASE = 'https://fernuni-hagen.sona-systems.com/webstudy_credit.aspx?experiment_id=1152&credit_token=2c54653912d442588f16e2e2a0ee7761&survey_code=';
-    var sonaCode = participant_code || 'UNKNOWN';
+    var sonaCode = sona_survey_code;
+    if (!sonaCode) {
+        console.warn('No Sona survey code in the URL (?participant=...). The credit link will not work.');
+        sonaCode = 'MISSING';
+    }
     var sonaUrl = SONA_BASE + encodeURIComponent(sonaCode);
+    // Sona completion redirect: PsychoJS sends the participant there when the experiment ends normally
+    if (use_sona && sona_survey_code && typeof psychoJS.setRedirectUrls === 'function') {
+        psychoJS.setRedirectUrls(sonaUrl, '');
+    }
     
     // ---------- Fullscreen warning off for the debriefing ----------
     if (window.fsGuard) {
@@ -7261,7 +7191,8 @@ function ExitRoutineBegin(snapshot) {
         '</div>' +
         '<p style="margin-top:16px;font-size:13px;color:#aaa;">' + TEXT.sonaHint + '</p>' +
         '<p id="debrief-blocked" style="display:none;margin-top:12px;color:#ff8080;font-size:14px;">' + TEXT.sonaBlocked + '</p>' +
-        '<button id="debrief-finish" style="width:100%;padding:12px;margin-top:20px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + TEXT.button + '</button>' +
+        '<button id="debrief-finish" disabled style="width:100%;padding:12px;margin-top:20px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + TEXT.button + '</button>' +
+        '<p id="debrief-required" style="margin-top:10px;font-size:13px;color:#aaa;text-align:center;">' + TEXT.sonaRequired + '</p>' +
         '</div>' +
         '</div>';
     
@@ -7388,14 +7319,21 @@ function ExitRoutineBegin(snapshot) {
         }
     });
     
+    function unlockFinish() {
+        document.getElementById('debrief-finish').disabled = false;
+        document.getElementById('debrief-required').style.display = 'none';
+    }
+    
     // Page 2: link clicked manually
     document.getElementById('debrief-sonalink').addEventListener('click', function() {
         sona_opened = true;
+        unlockFinish();
         document.getElementById('debrief-blocked').style.display = 'none';
     });
     
     // Page 2: copy link
     document.getElementById('debrief-copy').addEventListener('click', function() {
+        unlockFinish();
         var btn = this;
         var label = TEXT.sonaCopy;
         function selectUrl() {
@@ -7480,11 +7418,6 @@ function ExitRoutineEachFrame() {
     if (debrief_done) {
         continueRoutine = false;
     }
-    // check for quit (typically the Esc key)
-    if (psychoJS.experiment.experimentEnded || psychoJS.eventManager.getKeys({keyList:['escape']}).length > 0) {
-      return quitPsychoJS('The [Escape] key was pressed. Goodbye!', false);
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
