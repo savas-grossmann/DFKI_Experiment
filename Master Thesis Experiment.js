@@ -841,6 +841,8 @@ async function experimentInit() {
           return fsOrigQuit(options);
       };
   }
+  // disable csv downloading
+  psychoJS._saveResults = false;
   // Initialize components for Routine "Check_Consent"
   Check_ConsentClock = new util.Clock();
   text_placeholder2 = new visual.TextStim({
