@@ -41,6 +41,9 @@ function urlFlag(name) {
 }
 
 var use_sona = urlFlag('sona');
+var allow_quick = urlFlag('quick');
+var quickMode = false;                      // off by default
+var quick_reps = allow_quick ? 1 : 0;       // 1 = ask the question, 0 = skip it
 
 
 function urlParam(name) {
@@ -92,7 +95,7 @@ var TX = {
         // ranking routine
         ranking_bar_left: '◄ Most likely',
         ranking_bar_right: 'Least likely ►',
-        ranking_prompt: 'Rank the faces according to how likely they match the scene.',
+        ranking_description: 'Rank the faces according to how likely they match the scene.',
 
         // generic
         continue_hint: 'Press ENTER to continue',
@@ -106,7 +109,7 @@ var TX = {
 
         ranking_bar_left: '◄ Am wahrscheinlichsten',
         ranking_bar_right: 'Am unwahrscheinlichsten ►',
-        ranking_prompt: 'Bringen Sie die Gesichter in eine Rangfolge, wie wahrscheinlich sie zur Szene passen.',
+        ranking_description: 'Bringen Sie die Gesichter in eine Rangfolge, wie wahrscheinlich sie zur Szene passen.',
 
         continue_hint: 'Drücken Sie ENTER, um fortzufahren',
         text_continue_triple: 'Drücken Sie ENTER, um fortzufahren',
@@ -366,9 +369,12 @@ psychoJS.scheduleCondition(function() { return (psychoJS.gui.dialogComponent.but
 // flowScheduler gets run if the participants presses OK
 flowScheduler.add(updateInfo); // add timeStamp
 flowScheduler.add(experimentInit);
-flowScheduler.add(Quick_ModeRoutineBegin());
-flowScheduler.add(Quick_ModeRoutineEachFrame());
-flowScheduler.add(Quick_ModeRoutineEnd());
+const quick_mode_loopLoopScheduler = new Scheduler(psychoJS);
+flowScheduler.add(quick_mode_loopLoopBegin(quick_mode_loopLoopScheduler));
+flowScheduler.add(quick_mode_loopLoopScheduler);
+flowScheduler.add(quick_mode_loopLoopEnd);
+
+
 flowScheduler.add(Choose_LanguageRoutineBegin());
 flowScheduler.add(Choose_LanguageRoutineEachFrame());
 flowScheduler.add(Choose_LanguageRoutineEnd());
@@ -534,6 +540,7 @@ var wait_text_2;
 var facesReady;
 var currentSceneFaceResources;
 var Face_RankingClock;
+var ranking_description;
 var ranking_bar_left;
 var ranking_bar_right;
 var image_1;
@@ -552,7 +559,6 @@ var mouse;
 var timer_text;
 var finish_ranking_key;
 var finish_ranking_text;
-var ranking_description;
 var Save_Interim_ResultsClock;
 var IAT_instructionsClock;
 var instructs_text;
@@ -1129,6 +1135,18 @@ async function experimentInit() {
   currentSceneFaceResources = [];
   // Initialize components for Routine "Face_Ranking"
   Face_RankingClock = new util.Clock();
+  ranking_description = new visual.TextStim({
+    win: psychoJS.window,
+    name: 'ranking_description',
+    text: 'Please sort these faces from least to most likely to be in the scene you saw before.',
+    font: 'Arial',
+    units: undefined, 
+    pos: [(- 0.1), 0.5], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    languageStyle: 'LTR',
+    color: new util.Color('white'),  opacity: undefined,
+    depth: -1.0 
+  });
+  
   ranking_bar_left = new visual.TextStim({
     win: psychoJS.window,
     name: 'ranking_bar_left',
@@ -1138,7 +1156,7 @@ async function experimentInit() {
     pos: [(- 0.7), 0], draggable: false, height: 0.04,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
-    depth: -1.0 
+    depth: -2.0 
   });
   
   ranking_bar_right = new visual.TextStim({
@@ -1150,7 +1168,7 @@ async function experimentInit() {
     pos: [0.7, 0], draggable: false, height: 0.04,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
-    depth: -2.0 
+    depth: -3.0 
   });
   
   image_1 = new visual.ImageStim({
@@ -1164,7 +1182,7 @@ async function experimentInit() {
     size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -3.0 
+    texRes : 128.0, interpolate : true, depth : -4.0 
   });
   image_2 = new visual.ImageStim({
     win : psychoJS.window,
@@ -1177,7 +1195,7 @@ async function experimentInit() {
     size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -4.0 
+    texRes : 128.0, interpolate : true, depth : -5.0 
   });
   image_3 = new visual.ImageStim({
     win : psychoJS.window,
@@ -1190,7 +1208,7 @@ async function experimentInit() {
     size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -5.0 
+    texRes : 128.0, interpolate : true, depth : -6.0 
   });
   image_4 = new visual.ImageStim({
     win : psychoJS.window,
@@ -1203,7 +1221,7 @@ async function experimentInit() {
     size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -6.0 
+    texRes : 128.0, interpolate : true, depth : -7.0 
   });
   image_5 = new visual.ImageStim({
     win : psychoJS.window,
@@ -1216,7 +1234,7 @@ async function experimentInit() {
     size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -7.0 
+    texRes : 128.0, interpolate : true, depth : -8.0 
   });
   image_6 = new visual.ImageStim({
     win : psychoJS.window,
@@ -1229,7 +1247,7 @@ async function experimentInit() {
     size : 1.0,
     color : new util.Color([1,1,1]), opacity : undefined,
     flipHoriz : false, flipVert : false,
-    texRes : 128.0, interpolate : true, depth : -8.0 
+    texRes : 128.0, interpolate : true, depth : -9.0 
   });
   pos_1 = new visual.Rect ({
     win: psychoJS.window, name: 'pos_1', 
@@ -1243,7 +1261,7 @@ async function experimentInit() {
     fillColor: undefined, 
     colorSpace: 'rgb', 
     opacity: undefined, 
-    depth: -9, 
+    depth: -10, 
     interpolate: true, 
   });
   
@@ -1259,7 +1277,7 @@ async function experimentInit() {
     fillColor: undefined, 
     colorSpace: 'rgb', 
     opacity: undefined, 
-    depth: -10, 
+    depth: -11, 
     interpolate: true, 
   });
   
@@ -1275,7 +1293,7 @@ async function experimentInit() {
     fillColor: undefined, 
     colorSpace: 'rgb', 
     opacity: undefined, 
-    depth: -11, 
+    depth: -12, 
     interpolate: true, 
   });
   
@@ -1291,7 +1309,7 @@ async function experimentInit() {
     fillColor: undefined, 
     colorSpace: 'rgb', 
     opacity: undefined, 
-    depth: -12, 
+    depth: -13, 
     interpolate: true, 
   });
   
@@ -1307,7 +1325,7 @@ async function experimentInit() {
     fillColor: undefined, 
     colorSpace: 'rgb', 
     opacity: undefined, 
-    depth: -13, 
+    depth: -14, 
     interpolate: true, 
   });
   
@@ -1323,7 +1341,7 @@ async function experimentInit() {
     fillColor: undefined, 
     colorSpace: 'rgb', 
     opacity: undefined, 
-    depth: -14, 
+    depth: -15, 
     interpolate: true, 
   });
   
@@ -1340,7 +1358,7 @@ async function experimentInit() {
     pos: [0.85, 0.45], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
-    depth: -18.0 
+    depth: -19.0 
   });
   
   finish_ranking_key = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
@@ -1354,19 +1372,7 @@ async function experimentInit() {
     pos: [(- 0.1), (- 0.35)], draggable: false, height: 0.025,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
-    depth: -20.0 
-  });
-  
-  ranking_description = new visual.TextStim({
-    win: psychoJS.window,
-    name: 'ranking_description',
-    text: 'Please sort these faces from least to most likely to be in the scene you saw before.',
-    font: 'Arial',
-    units: undefined, 
-    pos: [(- 0.1), 0.5], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
-    languageStyle: 'LTR',
-    color: new util.Color('white'),  opacity: undefined,
-    depth: -22.0 
+    depth: -21.0 
   });
   
   // Initialize components for Routine "Save_Interim_Results"
@@ -1646,6 +1652,403 @@ async function experimentInit() {
   routineTimer = new util.CountdownTimer();  // to track time remaining of each (non-slip) routine
   
   return Scheduler.Event.NEXT;
+}
+
+
+var quick_mode_loop;
+function quick_mode_loopLoopBegin(quick_mode_loopLoopScheduler, snapshot) {
+  return async function() {
+    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
+    
+    // set up handler to look after randomisation of conditions etc
+    quick_mode_loop = new TrialHandler({
+      psychoJS: psychoJS,
+      nReps: quick_reps, method: TrialHandler.Method.SEQUENTIAL,
+      extraInfo: expInfo, originPath: undefined,
+      trialList: undefined,
+      seed: undefined, name: 'quick_mode_loop'
+    });
+    psychoJS.experiment.addLoop(quick_mode_loop); // add the loop to the experiment
+    currentLoop = quick_mode_loop;  // we're now the current loop
+    
+    // Schedule all the trials in the trialList:
+    for (const thisQuick_mode_loop of quick_mode_loop) {
+      snapshot = quick_mode_loop.getSnapshot();
+      quick_mode_loopLoopScheduler.add(importConditions(snapshot));
+      quick_mode_loopLoopScheduler.add(Quick_ModeRoutineBegin(snapshot));
+      quick_mode_loopLoopScheduler.add(Quick_ModeRoutineEachFrame());
+      quick_mode_loopLoopScheduler.add(Quick_ModeRoutineEnd(snapshot));
+      quick_mode_loopLoopScheduler.add(quick_mode_loopLoopEndIteration(quick_mode_loopLoopScheduler, snapshot));
+    }
+    
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+async function quick_mode_loopLoopEnd() {
+  // terminate loop
+  psychoJS.experiment.removeLoop(quick_mode_loop);
+  // update the current loop from the ExperimentHandler
+  if (psychoJS.experiment._unfinishedLoops.length>0)
+    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
+  else
+    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
+  return Scheduler.Event.NEXT;
+}
+
+
+function quick_mode_loopLoopEndIteration(scheduler, snapshot) {
+  // ------Prepare for next entry------
+  return async function () {
+    if (typeof snapshot !== 'undefined') {
+      // ------Check if user ended loop early------
+      if (snapshot.finished) {
+        // Check for and save orphaned data
+        if (psychoJS.experiment.isEntryEmpty()) {
+          psychoJS.experiment.nextEntry(snapshot);
+        }
+        scheduler.stop();
+      } else {
+        psychoJS.experiment.nextEntry(snapshot);
+      }
+    return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+var Scene_Loop;
+function Scene_LoopLoopBegin(Scene_LoopLoopScheduler, snapshot) {
+  return async function() {
+    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
+    
+    // set up handler to look after randomisation of conditions etc
+    Scene_Loop = new TrialHandler({
+      psychoJS: psychoJS,
+      nReps: 1, method: TrialHandler.Method.SEQUENTIAL,
+      extraInfo: expInfo, originPath: undefined,
+      trialList: conditionsFile,
+      seed: undefined, name: 'Scene_Loop'
+    });
+    psychoJS.experiment.addLoop(Scene_Loop); // add the loop to the experiment
+    currentLoop = Scene_Loop;  // we're now the current loop
+    
+    // Schedule all the trials in the trialList:
+    for (const thisScene_Loop of Scene_Loop) {
+      snapshot = Scene_Loop.getSnapshot();
+      Scene_LoopLoopScheduler.add(importConditions(snapshot));
+      Scene_LoopLoopScheduler.add(load_scene_picturesRoutineBegin(snapshot));
+      Scene_LoopLoopScheduler.add(load_scene_picturesRoutineEachFrame());
+      Scene_LoopLoopScheduler.add(load_scene_picturesRoutineEnd(snapshot));
+      Scene_LoopLoopScheduler.add(Scene_Presentation_TripleRoutineBegin(snapshot));
+      Scene_LoopLoopScheduler.add(Scene_Presentation_TripleRoutineEachFrame());
+      Scene_LoopLoopScheduler.add(Scene_Presentation_TripleRoutineEnd(snapshot));
+      Scene_LoopLoopScheduler.add(Scene_DescriptionRoutineBegin(snapshot));
+      Scene_LoopLoopScheduler.add(Scene_DescriptionRoutineEachFrame());
+      Scene_LoopLoopScheduler.add(Scene_DescriptionRoutineEnd(snapshot));
+      Scene_LoopLoopScheduler.add(load_scene_facesRoutineBegin(snapshot));
+      Scene_LoopLoopScheduler.add(load_scene_facesRoutineEachFrame());
+      Scene_LoopLoopScheduler.add(load_scene_facesRoutineEnd(snapshot));
+      const Face_Ranking_LoopLoopScheduler = new Scheduler(psychoJS);
+      Scene_LoopLoopScheduler.add(Face_Ranking_LoopLoopBegin(Face_Ranking_LoopLoopScheduler, snapshot));
+      Scene_LoopLoopScheduler.add(Face_Ranking_LoopLoopScheduler);
+      Scene_LoopLoopScheduler.add(Face_Ranking_LoopLoopEnd);
+      Scene_LoopLoopScheduler.add(Save_Interim_ResultsRoutineBegin(snapshot));
+      Scene_LoopLoopScheduler.add(Save_Interim_ResultsRoutineEachFrame());
+      Scene_LoopLoopScheduler.add(Save_Interim_ResultsRoutineEnd(snapshot));
+      Scene_LoopLoopScheduler.add(Scene_LoopLoopEndIteration(Scene_LoopLoopScheduler, snapshot));
+    }
+    
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+var Face_Ranking_Loop;
+function Face_Ranking_LoopLoopBegin(Face_Ranking_LoopLoopScheduler, snapshot) {
+  return async function() {
+    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
+    
+    // set up handler to look after randomisation of conditions etc
+    Face_Ranking_Loop = new TrialHandler({
+      psychoJS: psychoJS,
+      nReps: faceRankingLoopNum, method: TrialHandler.Method.SEQUENTIAL,
+      extraInfo: expInfo, originPath: undefined,
+      trialList: undefined,
+      seed: undefined, name: 'Face_Ranking_Loop'
+    });
+    psychoJS.experiment.addLoop(Face_Ranking_Loop); // add the loop to the experiment
+    currentLoop = Face_Ranking_Loop;  // we're now the current loop
+    
+    // Schedule all the trials in the trialList:
+    for (const thisFace_Ranking_Loop of Face_Ranking_Loop) {
+      snapshot = Face_Ranking_Loop.getSnapshot();
+      Face_Ranking_LoopLoopScheduler.add(importConditions(snapshot));
+      Face_Ranking_LoopLoopScheduler.add(Face_RankingRoutineBegin(snapshot));
+      Face_Ranking_LoopLoopScheduler.add(Face_RankingRoutineEachFrame());
+      Face_Ranking_LoopLoopScheduler.add(Face_RankingRoutineEnd(snapshot));
+      Face_Ranking_LoopLoopScheduler.add(Face_Ranking_LoopLoopEndIteration(Face_Ranking_LoopLoopScheduler, snapshot));
+    }
+    
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+async function Face_Ranking_LoopLoopEnd() {
+  // terminate loop
+  psychoJS.experiment.removeLoop(Face_Ranking_Loop);
+  // update the current loop from the ExperimentHandler
+  if (psychoJS.experiment._unfinishedLoops.length>0)
+    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
+  else
+    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
+  return Scheduler.Event.NEXT;
+}
+
+
+function Face_Ranking_LoopLoopEndIteration(scheduler, snapshot) {
+  // ------Prepare for next entry------
+  return async function () {
+    if (typeof snapshot !== 'undefined') {
+      // ------Check if user ended loop early------
+      if (snapshot.finished) {
+        // Check for and save orphaned data
+        if (psychoJS.experiment.isEntryEmpty()) {
+          psychoJS.experiment.nextEntry(snapshot);
+        }
+        scheduler.stop();
+      } else {
+        psychoJS.experiment.nextEntry(snapshot);
+      }
+    return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+async function Scene_LoopLoopEnd() {
+  // terminate loop
+  psychoJS.experiment.removeLoop(Scene_Loop);
+  // update the current loop from the ExperimentHandler
+  if (psychoJS.experiment._unfinishedLoops.length>0)
+    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
+  else
+    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
+  return Scheduler.Event.NEXT;
+}
+
+
+function Scene_LoopLoopEndIteration(scheduler, snapshot) {
+  // ------Prepare for next entry------
+  return async function () {
+    if (typeof snapshot !== 'undefined') {
+      // ------Check if user ended loop early------
+      if (snapshot.finished) {
+        // Check for and save orphaned data
+        if (psychoJS.experiment.isEntryEmpty()) {
+          psychoJS.experiment.nextEntry(snapshot);
+        }
+        scheduler.stop();
+      } else {
+        psychoJS.experiment.nextEntry(snapshot);
+      }
+    return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+var IAT_instruction_pages;
+function IAT_instruction_pagesLoopBegin(IAT_instruction_pagesLoopScheduler, snapshot) {
+  return async function() {
+    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
+    
+    // set up handler to look after randomisation of conditions etc
+    IAT_instruction_pages = new TrialHandler({
+      psychoJS: psychoJS,
+      nReps: 1, method: TrialHandler.Method.SEQUENTIAL,
+      extraInfo: expInfo, originPath: undefined,
+      trialList: iat_instructs,
+      seed: undefined, name: 'IAT_instruction_pages'
+    });
+    psychoJS.experiment.addLoop(IAT_instruction_pages); // add the loop to the experiment
+    currentLoop = IAT_instruction_pages;  // we're now the current loop
+    
+    // Schedule all the trials in the trialList:
+    for (const thisIAT_instruction_page of IAT_instruction_pages) {
+      snapshot = IAT_instruction_pages.getSnapshot();
+      IAT_instruction_pagesLoopScheduler.add(importConditions(snapshot));
+      IAT_instruction_pagesLoopScheduler.add(IAT_instructionsRoutineBegin(snapshot));
+      IAT_instruction_pagesLoopScheduler.add(IAT_instructionsRoutineEachFrame());
+      IAT_instruction_pagesLoopScheduler.add(IAT_instructionsRoutineEnd(snapshot));
+      IAT_instruction_pagesLoopScheduler.add(IAT_instruction_pagesLoopEndIteration(IAT_instruction_pagesLoopScheduler, snapshot));
+    }
+    
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+async function IAT_instruction_pagesLoopEnd() {
+  // terminate loop
+  psychoJS.experiment.removeLoop(IAT_instruction_pages);
+  // update the current loop from the ExperimentHandler
+  if (psychoJS.experiment._unfinishedLoops.length>0)
+    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
+  else
+    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
+  return Scheduler.Event.NEXT;
+}
+
+
+function IAT_instruction_pagesLoopEndIteration(scheduler, snapshot) {
+  // ------Prepare for next entry------
+  return async function () {
+    if (typeof snapshot !== 'undefined') {
+      // ------Check if user ended loop early------
+      if (snapshot.finished) {
+        // Check for and save orphaned data
+        if (psychoJS.experiment.isEntryEmpty()) {
+          psychoJS.experiment.nextEntry(snapshot);
+        }
+        scheduler.stop();
+      }
+    return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+var IAT_blocks;
+function IAT_blocksLoopBegin(IAT_blocksLoopScheduler, snapshot) {
+  return async function() {
+    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
+    
+    // set up handler to look after randomisation of conditions etc
+    IAT_blocks = new TrialHandler({
+      psychoJS: psychoJS,
+      nReps: 1, method: TrialHandler.Method.SEQUENTIAL,
+      extraInfo: expInfo, originPath: undefined,
+      trialList: iat_block_order,
+      seed: undefined, name: 'IAT_blocks'
+    });
+    psychoJS.experiment.addLoop(IAT_blocks); // add the loop to the experiment
+    currentLoop = IAT_blocks;  // we're now the current loop
+    
+    // Schedule all the trials in the trialList:
+    for (const thisIAT_block of IAT_blocks) {
+      snapshot = IAT_blocks.getSnapshot();
+      IAT_blocksLoopScheduler.add(importConditions(snapshot));
+      IAT_blocksLoopScheduler.add(IAT_readyRoutineBegin(snapshot));
+      IAT_blocksLoopScheduler.add(IAT_readyRoutineEachFrame());
+      IAT_blocksLoopScheduler.add(IAT_readyRoutineEnd(snapshot));
+      const IAT_trialsLoopScheduler = new Scheduler(psychoJS);
+      IAT_blocksLoopScheduler.add(IAT_trialsLoopBegin(IAT_trialsLoopScheduler, snapshot));
+      IAT_blocksLoopScheduler.add(IAT_trialsLoopScheduler);
+      IAT_blocksLoopScheduler.add(IAT_trialsLoopEnd);
+      IAT_blocksLoopScheduler.add(IAT_blocksLoopEndIteration(IAT_blocksLoopScheduler, snapshot));
+    }
+    
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+var IAT_trials;
+function IAT_trialsLoopBegin(IAT_trialsLoopScheduler, snapshot) {
+  return async function() {
+    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
+    
+    // set up handler to look after randomisation of conditions etc
+    IAT_trials = new TrialHandler({
+      psychoJS: psychoJS,
+      nReps: 1, method: TrialHandler.Method.RANDOM,
+      extraInfo: expInfo, originPath: undefined,
+      trialList: conds_file,
+      seed: undefined, name: 'IAT_trials'
+    });
+    psychoJS.experiment.addLoop(IAT_trials); // add the loop to the experiment
+    currentLoop = IAT_trials;  // we're now the current loop
+    
+    // Schedule all the trials in the trialList:
+    for (const thisIAT_trial of IAT_trials) {
+      snapshot = IAT_trials.getSnapshot();
+      IAT_trialsLoopScheduler.add(importConditions(snapshot));
+      IAT_trialsLoopScheduler.add(IAT_trialRoutineBegin(snapshot));
+      IAT_trialsLoopScheduler.add(IAT_trialRoutineEachFrame());
+      IAT_trialsLoopScheduler.add(IAT_trialRoutineEnd(snapshot));
+      IAT_trialsLoopScheduler.add(IAT_feedbackRoutineBegin(snapshot));
+      IAT_trialsLoopScheduler.add(IAT_feedbackRoutineEachFrame());
+      IAT_trialsLoopScheduler.add(IAT_feedbackRoutineEnd(snapshot));
+      IAT_trialsLoopScheduler.add(IAT_trialsLoopEndIteration(IAT_trialsLoopScheduler, snapshot));
+    }
+    
+    return Scheduler.Event.NEXT;
+  }
+}
+
+
+async function IAT_trialsLoopEnd() {
+  // terminate loop
+  psychoJS.experiment.removeLoop(IAT_trials);
+  // update the current loop from the ExperimentHandler
+  if (psychoJS.experiment._unfinishedLoops.length>0)
+    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
+  else
+    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
+  return Scheduler.Event.NEXT;
+}
+
+
+function IAT_trialsLoopEndIteration(scheduler, snapshot) {
+  // ------Prepare for next entry------
+  return async function () {
+    if (typeof snapshot !== 'undefined') {
+      // ------Check if user ended loop early------
+      if (snapshot.finished) {
+        // Check for and save orphaned data
+        if (psychoJS.experiment.isEntryEmpty()) {
+          psychoJS.experiment.nextEntry(snapshot);
+        }
+        scheduler.stop();
+      } else {
+        psychoJS.experiment.nextEntry(snapshot);
+      }
+    return Scheduler.Event.NEXT;
+    }
+  };
+}
+
+
+async function IAT_blocksLoopEnd() {
+  // terminate loop
+  psychoJS.experiment.removeLoop(IAT_blocks);
+  // update the current loop from the ExperimentHandler
+  if (psychoJS.experiment._unfinishedLoops.length>0)
+    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
+  else
+    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
+  return Scheduler.Event.NEXT;
+}
+
+
+function IAT_blocksLoopEndIteration(scheduler, snapshot) {
+  // ------Prepare for next entry------
+  return async function () {
+    if (typeof snapshot !== 'undefined') {
+      // ------Check if user ended loop early------
+      if (snapshot.finished) {
+        // Check for and save orphaned data
+        if (psychoJS.experiment.isEntryEmpty()) {
+          psychoJS.experiment.nextEntry(snapshot);
+        }
+        scheduler.stop();
+      }
+    return Scheduler.Event.NEXT;
+    }
+  };
 }
 
 
@@ -1945,6 +2348,7 @@ function Choose_LanguageRoutineEnd(snapshot) {
     if (lgSt) { document.head.removeChild(lgSt); }
     psychoJS.window._renderer.view.style.display = 'block';
     psychoJS.experiment.addData('sona_participant', use_sona);
+    psychoJS.experiment.addData('quick_mode', quickMode);
     // the Routine "Choose_Language" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -3446,340 +3850,6 @@ function Condition_LoadingRoutineEnd(snapshot) {
 }
 
 
-var Scene_Loop;
-function Scene_LoopLoopBegin(Scene_LoopLoopScheduler, snapshot) {
-  return async function() {
-    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
-    
-    // set up handler to look after randomisation of conditions etc
-    Scene_Loop = new TrialHandler({
-      psychoJS: psychoJS,
-      nReps: 1, method: TrialHandler.Method.SEQUENTIAL,
-      extraInfo: expInfo, originPath: undefined,
-      trialList: conditionsFile,
-      seed: undefined, name: 'Scene_Loop'
-    });
-    psychoJS.experiment.addLoop(Scene_Loop); // add the loop to the experiment
-    currentLoop = Scene_Loop;  // we're now the current loop
-    
-    // Schedule all the trials in the trialList:
-    for (const thisScene_Loop of Scene_Loop) {
-      snapshot = Scene_Loop.getSnapshot();
-      Scene_LoopLoopScheduler.add(importConditions(snapshot));
-      Scene_LoopLoopScheduler.add(load_scene_picturesRoutineBegin(snapshot));
-      Scene_LoopLoopScheduler.add(load_scene_picturesRoutineEachFrame());
-      Scene_LoopLoopScheduler.add(load_scene_picturesRoutineEnd(snapshot));
-      Scene_LoopLoopScheduler.add(Scene_Presentation_TripleRoutineBegin(snapshot));
-      Scene_LoopLoopScheduler.add(Scene_Presentation_TripleRoutineEachFrame());
-      Scene_LoopLoopScheduler.add(Scene_Presentation_TripleRoutineEnd(snapshot));
-      Scene_LoopLoopScheduler.add(Scene_DescriptionRoutineBegin(snapshot));
-      Scene_LoopLoopScheduler.add(Scene_DescriptionRoutineEachFrame());
-      Scene_LoopLoopScheduler.add(Scene_DescriptionRoutineEnd(snapshot));
-      Scene_LoopLoopScheduler.add(load_scene_facesRoutineBegin(snapshot));
-      Scene_LoopLoopScheduler.add(load_scene_facesRoutineEachFrame());
-      Scene_LoopLoopScheduler.add(load_scene_facesRoutineEnd(snapshot));
-      const Face_Ranking_LoopLoopScheduler = new Scheduler(psychoJS);
-      Scene_LoopLoopScheduler.add(Face_Ranking_LoopLoopBegin(Face_Ranking_LoopLoopScheduler, snapshot));
-      Scene_LoopLoopScheduler.add(Face_Ranking_LoopLoopScheduler);
-      Scene_LoopLoopScheduler.add(Face_Ranking_LoopLoopEnd);
-      Scene_LoopLoopScheduler.add(Save_Interim_ResultsRoutineBegin(snapshot));
-      Scene_LoopLoopScheduler.add(Save_Interim_ResultsRoutineEachFrame());
-      Scene_LoopLoopScheduler.add(Save_Interim_ResultsRoutineEnd(snapshot));
-      Scene_LoopLoopScheduler.add(Scene_LoopLoopEndIteration(Scene_LoopLoopScheduler, snapshot));
-    }
-    
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-var Face_Ranking_Loop;
-function Face_Ranking_LoopLoopBegin(Face_Ranking_LoopLoopScheduler, snapshot) {
-  return async function() {
-    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
-    
-    // set up handler to look after randomisation of conditions etc
-    Face_Ranking_Loop = new TrialHandler({
-      psychoJS: psychoJS,
-      nReps: faceRankingLoopNum, method: TrialHandler.Method.SEQUENTIAL,
-      extraInfo: expInfo, originPath: undefined,
-      trialList: undefined,
-      seed: undefined, name: 'Face_Ranking_Loop'
-    });
-    psychoJS.experiment.addLoop(Face_Ranking_Loop); // add the loop to the experiment
-    currentLoop = Face_Ranking_Loop;  // we're now the current loop
-    
-    // Schedule all the trials in the trialList:
-    for (const thisFace_Ranking_Loop of Face_Ranking_Loop) {
-      snapshot = Face_Ranking_Loop.getSnapshot();
-      Face_Ranking_LoopLoopScheduler.add(importConditions(snapshot));
-      Face_Ranking_LoopLoopScheduler.add(Face_RankingRoutineBegin(snapshot));
-      Face_Ranking_LoopLoopScheduler.add(Face_RankingRoutineEachFrame());
-      Face_Ranking_LoopLoopScheduler.add(Face_RankingRoutineEnd(snapshot));
-      Face_Ranking_LoopLoopScheduler.add(Face_Ranking_LoopLoopEndIteration(Face_Ranking_LoopLoopScheduler, snapshot));
-    }
-    
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-async function Face_Ranking_LoopLoopEnd() {
-  // terminate loop
-  psychoJS.experiment.removeLoop(Face_Ranking_Loop);
-  // update the current loop from the ExperimentHandler
-  if (psychoJS.experiment._unfinishedLoops.length>0)
-    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
-  else
-    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
-  return Scheduler.Event.NEXT;
-}
-
-
-function Face_Ranking_LoopLoopEndIteration(scheduler, snapshot) {
-  // ------Prepare for next entry------
-  return async function () {
-    if (typeof snapshot !== 'undefined') {
-      // ------Check if user ended loop early------
-      if (snapshot.finished) {
-        // Check for and save orphaned data
-        if (psychoJS.experiment.isEntryEmpty()) {
-          psychoJS.experiment.nextEntry(snapshot);
-        }
-        scheduler.stop();
-      } else {
-        psychoJS.experiment.nextEntry(snapshot);
-      }
-    return Scheduler.Event.NEXT;
-    }
-  };
-}
-
-
-async function Scene_LoopLoopEnd() {
-  // terminate loop
-  psychoJS.experiment.removeLoop(Scene_Loop);
-  // update the current loop from the ExperimentHandler
-  if (psychoJS.experiment._unfinishedLoops.length>0)
-    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
-  else
-    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
-  return Scheduler.Event.NEXT;
-}
-
-
-function Scene_LoopLoopEndIteration(scheduler, snapshot) {
-  // ------Prepare for next entry------
-  return async function () {
-    if (typeof snapshot !== 'undefined') {
-      // ------Check if user ended loop early------
-      if (snapshot.finished) {
-        // Check for and save orphaned data
-        if (psychoJS.experiment.isEntryEmpty()) {
-          psychoJS.experiment.nextEntry(snapshot);
-        }
-        scheduler.stop();
-      } else {
-        psychoJS.experiment.nextEntry(snapshot);
-      }
-    return Scheduler.Event.NEXT;
-    }
-  };
-}
-
-
-var IAT_instruction_pages;
-function IAT_instruction_pagesLoopBegin(IAT_instruction_pagesLoopScheduler, snapshot) {
-  return async function() {
-    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
-    
-    // set up handler to look after randomisation of conditions etc
-    IAT_instruction_pages = new TrialHandler({
-      psychoJS: psychoJS,
-      nReps: 1, method: TrialHandler.Method.SEQUENTIAL,
-      extraInfo: expInfo, originPath: undefined,
-      trialList: iat_instructs,
-      seed: undefined, name: 'IAT_instruction_pages'
-    });
-    psychoJS.experiment.addLoop(IAT_instruction_pages); // add the loop to the experiment
-    currentLoop = IAT_instruction_pages;  // we're now the current loop
-    
-    // Schedule all the trials in the trialList:
-    for (const thisIAT_instruction_page of IAT_instruction_pages) {
-      snapshot = IAT_instruction_pages.getSnapshot();
-      IAT_instruction_pagesLoopScheduler.add(importConditions(snapshot));
-      IAT_instruction_pagesLoopScheduler.add(IAT_instructionsRoutineBegin(snapshot));
-      IAT_instruction_pagesLoopScheduler.add(IAT_instructionsRoutineEachFrame());
-      IAT_instruction_pagesLoopScheduler.add(IAT_instructionsRoutineEnd(snapshot));
-      IAT_instruction_pagesLoopScheduler.add(IAT_instruction_pagesLoopEndIteration(IAT_instruction_pagesLoopScheduler, snapshot));
-    }
-    
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-async function IAT_instruction_pagesLoopEnd() {
-  // terminate loop
-  psychoJS.experiment.removeLoop(IAT_instruction_pages);
-  // update the current loop from the ExperimentHandler
-  if (psychoJS.experiment._unfinishedLoops.length>0)
-    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
-  else
-    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
-  return Scheduler.Event.NEXT;
-}
-
-
-function IAT_instruction_pagesLoopEndIteration(scheduler, snapshot) {
-  // ------Prepare for next entry------
-  return async function () {
-    if (typeof snapshot !== 'undefined') {
-      // ------Check if user ended loop early------
-      if (snapshot.finished) {
-        // Check for and save orphaned data
-        if (psychoJS.experiment.isEntryEmpty()) {
-          psychoJS.experiment.nextEntry(snapshot);
-        }
-        scheduler.stop();
-      }
-    return Scheduler.Event.NEXT;
-    }
-  };
-}
-
-
-var IAT_blocks;
-function IAT_blocksLoopBegin(IAT_blocksLoopScheduler, snapshot) {
-  return async function() {
-    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
-    
-    // set up handler to look after randomisation of conditions etc
-    IAT_blocks = new TrialHandler({
-      psychoJS: psychoJS,
-      nReps: 1, method: TrialHandler.Method.SEQUENTIAL,
-      extraInfo: expInfo, originPath: undefined,
-      trialList: iat_block_order,
-      seed: undefined, name: 'IAT_blocks'
-    });
-    psychoJS.experiment.addLoop(IAT_blocks); // add the loop to the experiment
-    currentLoop = IAT_blocks;  // we're now the current loop
-    
-    // Schedule all the trials in the trialList:
-    for (const thisIAT_block of IAT_blocks) {
-      snapshot = IAT_blocks.getSnapshot();
-      IAT_blocksLoopScheduler.add(importConditions(snapshot));
-      IAT_blocksLoopScheduler.add(IAT_readyRoutineBegin(snapshot));
-      IAT_blocksLoopScheduler.add(IAT_readyRoutineEachFrame());
-      IAT_blocksLoopScheduler.add(IAT_readyRoutineEnd(snapshot));
-      const IAT_trialsLoopScheduler = new Scheduler(psychoJS);
-      IAT_blocksLoopScheduler.add(IAT_trialsLoopBegin(IAT_trialsLoopScheduler, snapshot));
-      IAT_blocksLoopScheduler.add(IAT_trialsLoopScheduler);
-      IAT_blocksLoopScheduler.add(IAT_trialsLoopEnd);
-      IAT_blocksLoopScheduler.add(IAT_blocksLoopEndIteration(IAT_blocksLoopScheduler, snapshot));
-    }
-    
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-var IAT_trials;
-function IAT_trialsLoopBegin(IAT_trialsLoopScheduler, snapshot) {
-  return async function() {
-    TrialHandler.fromSnapshot(snapshot); // update internal variables (.thisN etc) of the loop
-    
-    // set up handler to look after randomisation of conditions etc
-    IAT_trials = new TrialHandler({
-      psychoJS: psychoJS,
-      nReps: 1, method: TrialHandler.Method.RANDOM,
-      extraInfo: expInfo, originPath: undefined,
-      trialList: conds_file,
-      seed: undefined, name: 'IAT_trials'
-    });
-    psychoJS.experiment.addLoop(IAT_trials); // add the loop to the experiment
-    currentLoop = IAT_trials;  // we're now the current loop
-    
-    // Schedule all the trials in the trialList:
-    for (const thisIAT_trial of IAT_trials) {
-      snapshot = IAT_trials.getSnapshot();
-      IAT_trialsLoopScheduler.add(importConditions(snapshot));
-      IAT_trialsLoopScheduler.add(IAT_trialRoutineBegin(snapshot));
-      IAT_trialsLoopScheduler.add(IAT_trialRoutineEachFrame());
-      IAT_trialsLoopScheduler.add(IAT_trialRoutineEnd(snapshot));
-      IAT_trialsLoopScheduler.add(IAT_feedbackRoutineBegin(snapshot));
-      IAT_trialsLoopScheduler.add(IAT_feedbackRoutineEachFrame());
-      IAT_trialsLoopScheduler.add(IAT_feedbackRoutineEnd(snapshot));
-      IAT_trialsLoopScheduler.add(IAT_trialsLoopEndIteration(IAT_trialsLoopScheduler, snapshot));
-    }
-    
-    return Scheduler.Event.NEXT;
-  }
-}
-
-
-async function IAT_trialsLoopEnd() {
-  // terminate loop
-  psychoJS.experiment.removeLoop(IAT_trials);
-  // update the current loop from the ExperimentHandler
-  if (psychoJS.experiment._unfinishedLoops.length>0)
-    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
-  else
-    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
-  return Scheduler.Event.NEXT;
-}
-
-
-function IAT_trialsLoopEndIteration(scheduler, snapshot) {
-  // ------Prepare for next entry------
-  return async function () {
-    if (typeof snapshot !== 'undefined') {
-      // ------Check if user ended loop early------
-      if (snapshot.finished) {
-        // Check for and save orphaned data
-        if (psychoJS.experiment.isEntryEmpty()) {
-          psychoJS.experiment.nextEntry(snapshot);
-        }
-        scheduler.stop();
-      } else {
-        psychoJS.experiment.nextEntry(snapshot);
-      }
-    return Scheduler.Event.NEXT;
-    }
-  };
-}
-
-
-async function IAT_blocksLoopEnd() {
-  // terminate loop
-  psychoJS.experiment.removeLoop(IAT_blocks);
-  // update the current loop from the ExperimentHandler
-  if (psychoJS.experiment._unfinishedLoops.length>0)
-    currentLoop = psychoJS.experiment._unfinishedLoops.at(-1);
-  else
-    currentLoop = psychoJS.experiment;  // so we use addData from the experiment
-  return Scheduler.Event.NEXT;
-}
-
-
-function IAT_blocksLoopEndIteration(scheduler, snapshot) {
-  // ------Prepare for next entry------
-  return async function () {
-    if (typeof snapshot !== 'undefined') {
-      // ------Check if user ended loop early------
-      if (snapshot.finished) {
-        // Check for and save orphaned data
-        if (psychoJS.experiment.isEntryEmpty()) {
-          psychoJS.experiment.nextEntry(snapshot);
-        }
-        scheduler.stop();
-      }
-    return Scheduler.Event.NEXT;
-    }
-  };
-}
-
-
 var load_scene_picturesMaxDurationReached;
 var load_scene_picturesMaxDuration;
 var load_scene_picturesComponents;
@@ -4762,6 +4832,7 @@ function Face_RankingRoutineBegin(snapshot) {
     Face_RankingMaxDuration = 40
     // keep track of which components have finished
     Face_RankingComponents = [];
+    Face_RankingComponents.push(ranking_description);
     Face_RankingComponents.push(ranking_bar_left);
     Face_RankingComponents.push(ranking_bar_right);
     Face_RankingComponents.push(image_1);
@@ -4780,7 +4851,6 @@ function Face_RankingRoutineBegin(snapshot) {
     Face_RankingComponents.push(timer_text);
     Face_RankingComponents.push(finish_ranking_key);
     Face_RankingComponents.push(finish_ranking_text);
-    Face_RankingComponents.push(ranking_description);
     
     for (const thisComponent of Face_RankingComponents)
       if ('status' in thisComponent)
@@ -4802,6 +4872,21 @@ function Face_RankingRoutineEachFrame() {
         Face_RankingMaxDurationReached = true
         continueRoutine = false
     }
+    
+    // *ranking_description* updates
+    if (t >= 0.0 && ranking_description.status === PsychoJS.Status.NOT_STARTED) {
+      // keep track of start time/frame for later
+      ranking_description.tStart = t;  // (not accounting for frame time here)
+      ranking_description.frameNStart = frameN;  // exact frame index
+      
+      ranking_description.setAutoDraw(true);
+    }
+    
+    
+    // if ranking_description is active this frame...
+    if (ranking_description.status === PsychoJS.Status.STARTED) {
+    }
+    
     
     // *ranking_bar_left* updates
     if (t >= 0.0 && ranking_bar_left.status === PsychoJS.Status.NOT_STARTED) {
@@ -5241,21 +5326,6 @@ function Face_RankingRoutineEachFrame() {
     }
     
     applyLang(ranking_bar_left,  ranking_bar_right, finish_ranking_text);
-    
-    // *ranking_description* updates
-    if (t >= 0.0 && ranking_description.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      ranking_description.tStart = t;  // (not accounting for frame time here)
-      ranking_description.frameNStart = frameN;  // exact frame index
-      
-      ranking_description.setAutoDraw(true);
-    }
-    
-    
-    // if ranking_description is active this frame...
-    if (ranking_description.status === PsychoJS.Status.STARTED) {
-    }
-    
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
