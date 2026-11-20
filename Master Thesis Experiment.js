@@ -90,7 +90,7 @@ var demo_country_name = '';
 var TX = {
     en: {
         // face description routine
-        task_description: 'Whats your overall impression of the person & what is she doing? Write atleast 50 characters to continue.',
+        task_description: 'What is your overall impression of the person depicted in the situation? And how would you describe their possible intentions? Write atleast 50 characters to continue.',
 
         // ranking routine
         ranking_bar_left: '◄ Most likely',
@@ -105,7 +105,7 @@ var TX = {
         main_ready_msg: "Take note of the categories below. Position your index fingers. Press the space bar (or one of the green buttons) to begin"
     },
     de: {
-        task_description: 'Wie ist Ihr Gesamteindruck von dieser Person und was macht sie gerade? Schreiben Sie mindestens 50 Zeichen, um fortzufahren.',
+        task_description: 'Wie ist Ihr Gesamteindruck von der Person, die in dieser Situation dargestellt wird? Und wie würden Sie ihre möglichen Absichten beschreiben? Schreibe mindestens 50 Zeichen um weiterzumachen.',
 
         ranking_bar_left: '◄ Am wahrscheinlichsten',
         ranking_bar_right: 'Am unwahrscheinlichsten ►',
@@ -173,24 +173,175 @@ function aspectCorrectedSize(targetWidth, targetHeight) {
 var sessionTag = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 
-function convertToCSV(dataArray) {
+var delimiter;
+function convertToCSV(dataArray, delimiter) {
+    delimiter = delimiter || ',';
     if (!dataArray || dataArray.length === 0) { return ""; }
-    var allKeys = {};
+    var headers = [], seen = {};
     for (var i = 0; i < dataArray.length; i++) {
         for (var k in dataArray[i]) {
-            if (dataArray[i].hasOwnProperty(k)) allKeys[k] = true;
+            if (dataArray[i].hasOwnProperty(k) && !seen[k]) { seen[k] = true; headers.push(k); }
         }
     }
-    var headers = Object.keys(allKeys);
-    var rows = [headers.map(function(h) { return '"' + String(h).replace(/"/g, '""') + '"'; }).join(',')];
+    function cell(v) {
+        if (v === undefined || v === null) { v = ''; }
+        else if (typeof v === 'object') { try { v = JSON.stringify(v); } catch (e) { v = String(v); } }
+        else { v = String(v); }
+        v = v.replace(/\r\n|\r|\n/g, ' ');
+        return '"' + v.replace(/"/g, '""') + '"';
+    }
+    var lines = [headers.map(cell).join(delimiter)];
     for (var j = 0; j < dataArray.length; j++) {
         var row = dataArray[j];
-        rows.push(headers.map(function(h) {
-            var val = (row[h] !== undefined && row[h] !== null) ? String(row[h]) : '';
-            return '"' + val.replace(/"/g, '""') + '"';
-        }).join(','));
+        lines.push(headers.map(function (h) { return cell(row[h]); }).join(delimiter));
     }
-    return rows.join('\n');
+    return '﻿' + lines.join('\r\n');
+}
+ 
+// Turns PsychoJS's "one row per routine" data into three tidy tables:
+//   info   -> 1 row per participant (language, demographics, explicit items, ...)
+//   scenes -> 1 row per face ranking (scene x face set)
+//   iat    -> 1 row per IAT trial
+
+function makeTidyTables(rows) {
+    function has(r, k) { return r[k] !== undefined && r[k] !== null && r[k] !== ''; }
+    function num(v, d) {                       // round floats like 1.2890000000000004
+        var n = parseFloat(v);
+        return (v === undefined || v === '' || isNaN(n)) ? (v === undefined ? '' : v) : +n.toFixed(d === undefined ? 3 : d);
+    }
+    function plusOne(v) { return has({v: v}, 'v') ? Number(v) + 1 : ''; }
+    var noise = /\.(started|stopped|thisRepN|thisTrialN|thisN|thisIndex|ran|order)$/;
+    var isLoopCol = /^(Scene_Loop|Face_Ranking_Loop|IAT_trials|quick_mode_loop)\./;
+ 
+    var info = {}, scenes = [], iat = [];
+    var lastStop = 0;                          // latest ".stopped" time = how long the experiment ran so far
+    var lastRanking = null, iatBlock = 0, lastDesc = {};
+ 
+    for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        for (var sk in r) {
+            if (r.hasOwnProperty(sk) && /\.stopped$/.test(sk)) {
+                var sv = parseFloat(r[sk]);
+                if (!isNaN(sv) && sv > lastStop) { lastStop = sv; }
+            }
+        }
+ 
+        // ---------- face ranking ----------
+        if (has(r, 'rank_1')) {
+            // the scene description is only in the first ranking row of a scene -> reuse it for the 2nd
+            if (has(r, 'response_box.text')) {
+                lastDesc = { text: r['response_box.text'], chars: r['description_char_count'],
+                             words: r['description_word_count'], time: num(r['Scene_Description.duration']) };
+            }
+            lastRanking = {
+                scene_nr:            plusOne(r['Scene_Loop.thisN']),
+                scene:               r['scene'],
+                scene_folder:        r['scene_folder'],
+                context_type:        r['context_type'],
+                face_gender:         r['gender'],   // gender of the scene face (participant gender stays in 'gender')
+                version:             r['version'],
+                cond_id:             r['cond_id'],
+                description:         lastDesc.text || '',
+                description_chars:   lastDesc.chars || '',
+                description_words:   lastDesc.words || '',
+                description_time:    lastDesc.time || '',
+                ranking_nr:          plusOne(r['Face_Ranking_Loop.thisN']),
+                face_set_number:     r['face_set_number'],
+                face_folder:         r['face_folder'],
+                rank_1: r['rank_1'], rank_2: r['rank_2'], rank_3: r['rank_3'],
+                rank_4: r['rank_4'], rank_5: r['rank_5'], rank_6: r['rank_6'],
+                ranking_time:        num(r['ranking_response_time']),
+                ranking_placements:  r['ranking_placement_count'],
+                ranking_complete:    r['ranking_completed_all_slots'],
+                ranking_timed_out:   r['ranking_timed_out'],
+                start_order:         has(r, 'start_order') ? r['start_order'] : ''
+            };
+            // Target face (needs FACE_KEY, see below): its rank and where it started
+            var key = (typeof FACE_KEY !== 'undefined') ? FACE_KEY[r['face_folder']] : undefined;
+            if (key !== undefined) {
+                var tgt = String(key);
+                lastRanking.target_face = tgt;
+                lastRanking.target_rank = '';
+                for (var rk = 1; rk <= 6; rk++) {
+                    if (String(r['rank_' + rk]).split('.')[0] === tgt) { lastRanking.target_rank = rk; }
+                }
+                lastRanking.target_start_pos = lastRanking.start_order
+                    ? String(lastRanking.start_order).split(',').indexOf(tgt) + 1 : '';
+            }
+            scenes.push(lastRanking);
+            continue;
+        }
+        // finish key of the ranking ends up in its own row -> merge into the ranking above
+        if (has(r, 'finish_ranking_key.keys') && lastRanking) {
+            lastRanking.finish_key_rt = num(r['finish_ranking_key.rt']);
+            continue;
+        }
+ 
+        // ---------- IAT trial ----------
+        if (has(r, 'block_name') && has(r, 'IAT_trials.thisN')) {
+            if (Number(r['IAT_trials.thisN']) === 0) { iatBlock++; }
+            iat.push({
+                block_nr:   iatBlock,
+                block_name: r['block_name'],
+                trial_nr:   plusOne(r['IAT_trials.thisN']),
+                stim_word:  r['stimWord'],
+                stim_image: r['stimImage'],
+                category:   r['category'],
+                correct_key: r['CorrAns'],
+                response:   has(r, 'key_resp_3.keys') ? r['key_resp_3.keys'] : '',
+                corr:       r['corr'],
+                rt:         num(r['rt']),
+                fs_exits:   has(r, 'fs_exits') ? r['fs_exits'] : '',
+                fs_out_sec: has(r, 'fs_out_sec') ? num(r['fs_out_sec']) : ''
+            });
+            continue;
+        }
+ 
+        // ---------- interim-save rows: nothing new in them ----------
+        if (has(r, 'Scene_Loop.thisN')) { continue; }
+ 
+        // ---------- everything else = participant-level info ----------
+        for (var k in r) {
+            if (!r.hasOwnProperty(k) || noise.test(k) || isLoopCol.test(k) || !has(r, k)) { continue; }
+            info[k] = (typeof r[k] === 'number') ? num(r[k]) : r[k];
+        }
+    }
+ 
+    // put a few key columns at the front of every trial row
+    var keyCols = {
+        participant_code: (typeof participant_code !== 'undefined' && participant_code) ? participant_code : (info.participant_code || ''),
+        session:  (typeof sessionTag !== 'undefined') ? sessionTag : '',
+        date:     info.date || '',
+        language: info.language || ''
+    };
+    function withKeys(o) { var x = {}, k; for (k in keyCols) x[k] = keyCols[k]; for (k in o) x[k] = o[k]; return x; }
+    info.total_duration_sec = Math.round(lastStop);
+    info.total_duration_min = +(lastStop / 60).toFixed(1);
+    var infoRow = withKeys(info);
+ 
+    return { info: [infoRow], scenes: scenes.map(withKeys), iat: iat.map(withKeys) };
+}
+// Everything in ONE long file: one row per face ranking or IAT trial,
+// participant info repeated on every row, "task" column says which kind of row it is.
+
+function makeTidyData(rows) {
+    var t = makeTidyTables(rows);
+    var info = t.info[0];
+    var out = [];
+    var cond = t.scenes.length ? { version: t.scenes[0].version, cond_id: t.scenes[0].cond_id } : { version: '', cond_id: '' };
+    function build(task, trial) {
+        var x = {}, k;
+        for (k in info) x[k] = info[k];     // participant columns first
+        x.version = cond.version;           // condition on every row (also IAT rows)
+        x.cond_id = cond.cond_id;
+        x.task = task;
+        for (k in trial) if (!(k in x)) x[k] = trial[k];
+        return x;
+    }
+    t.scenes.forEach(function (r) { out.push(build('face_ranking', r)); });
+    t.iat.forEach(function (r)    { out.push(build('iat', r)); });
+    if (out.length === 0) out.push(build('info_only', {}));   // e.g. dropout before the first scene
+    return out;
 }
 
 
@@ -615,102 +766,106 @@ async function experimentInit() {
   participant_code = 'quickMode_Delete'
   sceneImagesReady = false;
   
-  // Hide the PsychoJS canvas while showing the HTML question.
-  psychoJS.window._renderer.view.style.display = 'none';
+  if (quick_reps > 0) {
+      // Hide the PsychoJS canvas while showing the HTML question.
+      psychoJS.window._renderer.view.style.display = 'none';
   
-  var quickOverlay = document.createElement('div');
+      var quickOverlay = document.createElement('div');
   
-  quickOverlay.id = 'quick-mode-overlay';
+      quickOverlay.id = 'quick-mode-overlay';
   
-  quickOverlay.style.cssText =
-      'position:fixed;' +
-      'top:0;left:0;width:100%;height:100%;' +
-      'background:#000;' +
-      'display:flex;' +
-      'align-items:center;' +
-      'justify-content:center;' +
-      'z-index:9999;';
+      quickOverlay.style.cssText =
+          'position:fixed;' +
+          'top:0;left:0;width:100%;height:100%;' +
+          'background:#000;' +
+          'display:flex;' +
+          'align-items:center;' +
+          'justify-content:center;' +
+          'z-index:9999;';
   
-  quickOverlay.innerHTML = `
-      <div style="
-          background:#222;
-          padding:40px;
-          border-radius:8px;
-          color:white;
-          font-family:Arial,sans-serif;
-          text-align:center;
-          max-width:500px;
-          margin:20px;
-      ">
-          <h2>Quick Experiment</h2>
-  
-          <p style="font-size:18px;line-height:1.5;">
-              Do you want to do a quick experiment?
-          </p>
-  
-          <p style="line-height:1.5;">
-              The quick version skips the demographics and
-              participant code and includes fewer conditions
-              and face rankings.
-          </p>
-  
+      quickOverlay.innerHTML = `
           <div style="
-              display:flex;
-              gap:15px;
-              margin-top:25px;
+              background:#222;
+              padding:40px;
+              border-radius:8px;
+              color:white;
+              font-family:Arial,sans-serif;
+              text-align:center;
+              max-width:500px;
+              margin:20px;
           ">
-              <button id="quick-mode-yes" style="
-                  flex:1;
-                  padding:12px;
-                  border:0;
-                  border-radius:4px;
-                  background:#4CAF50;
-                  color:white;
-                  font-size:16px;
-                  cursor:pointer;
-              ">Yes</button>
+              <h2>Quick Experiment</h2>
   
-              <button id="quick-mode-no" style="
-                  flex:1;
-                  padding:12px;
-                  border:0;
-                  border-radius:4px;
-                  background:#666;
-                  color:white;
-                  font-size:16px;
-                  cursor:pointer;
-              ">No</button>
+              <p style="font-size:18px;line-height:1.5;">
+                  Do you want to do a quick experiment?
+              </p>
+  
+              <p style="line-height:1.5;">
+                  The quick version skips the demographics and
+                  participant code and includes fewer conditions
+                  and face rankings.
+              </p>
+  
+              <div style="
+                  display:flex;
+                  gap:15px;
+                  margin-top:25px;
+              ">
+                  <button id="quick-mode-yes" style="
+                      flex:1;
+                      padding:12px;
+                      border:0;
+                      border-radius:4px;
+                      background:#4CAF50;
+                      color:white;
+                      font-size:16px;
+                      cursor:pointer;
+                  ">Yes</button>
+  
+                  <button id="quick-mode-no" style="
+                      flex:1;
+                      padding:12px;
+                      border:0;
+                      border-radius:4px;
+                      background:#666;
+                      color:white;
+                      font-size:16px;
+                      cursor:pointer;
+                  ">No</button>
+              </div>
           </div>
-      </div>
-  `;
+      `;
   
-  document.body.appendChild(quickOverlay);
+      document.body.appendChild(quickOverlay);
   
-  // Shared function to finish the selection.
-  function finishQuickModeSelection(useQuickMode) {
-      quickMode = useQuickMode;
+      // Shared function to finish the selection.
+      function finishQuickModeSelection(useQuickMode) {
+          quickMode = useQuickMode;
+          quickModeChoiceDone = true;
+          
+          if (useQuickMode) {
+              faceRankingLoopNum = 2;
+          }
+  
+          if (quickOverlay.parentNode) {
+              quickOverlay.parentNode.removeChild(quickOverlay);
+          }
+  
+          psychoJS.window._renderer.view.style.display = 'block';
+      }
+  
+      document.getElementById('quick-mode-yes')
+          .addEventListener('click', function () {
+              finishQuickModeSelection(true);
+          });
+  
+      document.getElementById('quick-mode-no')
+          .addEventListener('click', function () {
+              finishQuickModeSelection(false);
+          });
+  } else {
       quickModeChoiceDone = true;
-      
-      if (useQuickMode) {
-          faceRankingLoopNum = 3;
-      }
-  
-      if (quickOverlay.parentNode) {
-          quickOverlay.parentNode.removeChild(quickOverlay);
-      }
-  
-      psychoJS.window._renderer.view.style.display = 'block';
   }
-  
-  document.getElementById('quick-mode-yes')
-      .addEventListener('click', function () {
-          finishQuickModeSelection(true);
-      });
-  
-  document.getElementById('quick-mode-no')
-      .addEventListener('click', function () {
-          finishQuickModeSelection(false);
-      });
   // Initialize components for Routine "Choose_Language"
   Choose_LanguageClock = new util.Clock();
   text_placeholder8 = new visual.TextStim({
@@ -734,14 +889,16 @@ async function experimentInit() {
           text: 'Dieses Experiment muss im Vollbildmodus durchgeführt werden. Bitte verlassen Sie ihn nicht.',
           back: 'Zum Vollbildmodus zurückkehren',
           leave: 'Experiment verlassen',
-          bye: 'Das Experiment wird nun geschlossen.'
+          bye: 'Das Experiment wurde beendet.',
+          closeTab: 'Sie können dieses Fenster jetzt schließen.'
       };
       var FS_EN = {
           title: 'Full screen mode required',
           text: 'This experiment must be done in full screen mode. Please do not leave it.',
           back: 'Return to full screen',
           leave: 'Leave experiment',
-          bye: 'The experiment will now close.'
+          bye: 'The experiment has ended.',
+          closeTab: 'You can now close this window.'
       };
   
       // Before a language is chosen, show both languages
@@ -788,11 +945,25 @@ async function experimentInit() {
   
           document.getElementById('fs-leave').addEventListener('click', function() {
               FS.active = false;
+  
+              // permanent end screen: the overlay stays, the experiment is stopped behind it
+              FS.overlay.style.background = '#000';
               document.getElementById('fs-card').innerHTML =
-                  '<h2 style="margin-top:0;">' + fsJoin('bye', ' / ') + '</h2>';
+                  '<h2 style="margin-top:0;">' + fsJoin('bye', ' / ') + '</h2>' +
+                  '<p style="line-height:1.5;">' + fsJoin('closeTab', '</p><p style="line-height:1.5;">') + '</p>';
+  
               setTimeout(function() {
-                  psychoJS.quit({message: 'Participant left full screen mode and chose to leave.', isCompleted: false});
-              }, 2500);
+                  var msg = 'Participant left full screen mode and chose to leave.';
+                  try {
+                      if (typeof quitPsychoJS === 'function') {
+                          quitPsychoJS(msg, false);   // Builder's own quit function (closes the window first)
+                      } else {
+                          psychoJS.quit({message: msg, isCompleted: false});
+                      }
+                  } catch (err) {
+                      console.error('Quit failed:', err);
+                  }
+              }, 1000);
           });
       }
   
@@ -3026,9 +3197,9 @@ function Participant_CodeRoutineEnd(snapshot) {
       }
     }
     psychoJS.experiment.addData('Participant_Code.stopped', globalClock.getTime());
-    if (!quickMode) {
-        psychoJS.experiment.addData('participant_code', participant_code);
+    psychoJS.experiment.addData('participant_code', participant_code);
     
+    if (!quickMode) {
         // safety cleanup in case the routine ended early
         var pcOv = document.getElementById('pcode-overlay');
         if (pcOv) { document.body.removeChild(pcOv); }
@@ -4705,6 +4876,7 @@ var folderName;
 var faceBasePath;
 var picked;
 var originalPositions;
+var startOrder;
 var locations;
 var slotNames;
 var occupiedSlots;
@@ -4773,15 +4945,23 @@ function Face_RankingRoutineBegin(snapshot) {
     // Run 'Begin Routine' code from snap_pictures
     picked = [image_1, image_2, image_3, image_4, image_5, image_6];
     
-    // original positions
-    originalPositions = {
-        "image_1": [-0.85, -0.25],
-        "image_2": [-0.51, -0.25],
-        "image_3": [-0.17, -0.25],
-        "image_4": [ 0.17, -0.25],
-        "image_5": [ 0.51, -0.25],
-        "image_6": [ 0.85, -0.25]
-    };
+    // start positions, left to right
+    var startSlots = [[-0.85, -0.25], [-0.51, -0.25], [-0.17, -0.25],
+                      [ 0.17, -0.25], [ 0.51, -0.25], [ 0.85, -0.25]];
+    
+    // shuffle which face goes to which start position
+    var startIdx = [0, 1, 2, 3, 4, 5];
+    for (var s = startIdx.length - 1; s > 0; s--) {
+        var r = Math.floor(Math.random() * (s + 1));
+        var tmp = startIdx[s]; startIdx[s] = startIdx[r]; startIdx[r] = tmp;
+    }
+    
+    originalPositions = {};
+    startOrder = [];
+    for (var f = 0; f < 6; f++) {
+        originalPositions["image_" + (f + 1)] = startSlots[startIdx[f]];
+        startOrder[startIdx[f]] = f + 1;
+    }
     
     // ranking slots
     locations = [
@@ -5359,6 +5539,8 @@ function Face_RankingRoutineEnd(snapshot) {
     }
     psychoJS.experiment.addData('Face_Ranking.stopped', globalClock.getTime());
     // Run 'End Routine' code from snap_pictures
+    psychoJS.experiment.addData('start_order', startOrder.join(','));
+    
     for (var i = 0; i < slotNames.length; i++) {
         var slotName = slotNames[i];
         if (occupiedSlots[slotName] !== undefined) {
@@ -5968,7 +6150,7 @@ function IAT_readyRoutineEachFrame() {
     // if ready_done is active this frame...
     if (ready_done.status === PsychoJS.Status.STARTED) {
       let theseKeys = ready_done.getKeys({
-        keyList: typeof 'space' === 'string' ? ['space'] : 'space', 
+        keyList: typeof ['space','a','l'] === 'string' ? [['space','a','l']] : ['space','a','l'], 
         waitRelease: false
       });
       _ready_done_allKeys = _ready_done_allKeys.concat(theseKeys);
@@ -6514,52 +6696,86 @@ function explicit_measurementsRoutineBegin(snapshot) {
     explicit_measurementsMaxDurationReached = false;
     // update component parameters for each repeat
     // ---------- Texts (adjust here) ----------
-    // Keys (A_weiss, aggressiv, ...) stay identical in both languages, so the data columns match.
-    var LABELS_EN = {
-        title: 'Ratings',
-        instruction: 'Please estimate how strongly each characteristic applies to men of the two groups. ' +
-                     'Click on a scale to answer (0 % = does not apply at all, 100 % = applies completely).',
-        groups: [
-            ['A_weiss', 'Group A: White men / men without a migration background'],
-            ['B_arab',  'Group B: Arab / Muslim men']
+    var Q_EN = {
+        title: 'Questionnaire',
+        instruction: 'Below you will find several statements and questions about people of Arab origin living in Germany. ' +
+                     'For each item, please indicate how much you agree or how you would answer. ' +
+                     'There are no right or wrong answers. We are interested in your personal opinion.',
+        parts: [
+            {
+                title: 'Part A',
+                scale: ['Strongly disagree', 'Somewhat disagree', 'Somewhat agree', 'Strongly agree'],
+                items: [
+                    'People of Arab origin have jobs that Germans should have.',
+                    'Most people of Arab origin living here who receive support from welfare could get along without it if they tried.',
+                    'Germans and people of Arab origin can never be really comfortable with each other, even if they are close friends.',
+                    'Most politicians in Germany care too much about people of Arab origin and not enough about the average German person.',
+                    'People of Arab origin come from less able races and this explains why they are not as well off as most German people.',
+                    'I would be willing to have sexual relationships with a person of Arab origin.',
+                    'I would not mind if a suitably qualified person of Arab origin was appointed as my boss.',
+                    'I would not mind if a person of Arab origin who had a similar economic background as mine joined my close family by marriage.'
+                ]
+            },
+            {
+                title: 'Part B',
+                scale: ['Very different', 'Somewhat different', 'Somewhat similar', 'Very similar'],
+                items: [
+                    'How different or similar do you think people of Arab origin living here are to other Germans like yourself in how honest they are?'
+                ]
+            },
+            {
+                title: 'Part C',
+                scale: ['Very bothered', 'Bothered', 'Bothered a little', 'Not bothered at all'],
+                items: [
+                    'Suppose that a child of yours had children with a person of very different colour and physical characteristics than your own. How bothered would you be if your grandchildren did not physically resemble the people on your side of the family?'
+                ]
+            }
         ],
-        traits: [
-            ['aggressiv',    'aggressive'],
-            ['gewalttaetig', 'violent'],
-            ['bedrohlich',   'threatening'],
-            ['kriminell',    'criminal'],
-            ['gefaehrlich',  'dangerous']
-        ],
-        scaleMin: '0 %',
-        scaleMax: '100 %',
         button: 'Continue',
         error: 'Please answer all questions.'
     };
     
-    var LABELS_DE = {
-        title: 'Einschätzungen',
-        instruction: 'Bitte schätzen Sie ein, wie stark die jeweilige Eigenschaft auf Männer der beiden Gruppen zutrifft. ' +
-                     'Klicken Sie zum Antworten auf die Skala (0 % = trifft überhaupt nicht zu, 100 % = trifft völlig zu).',
-        groups: [
-            ['A_weiss', 'Gruppe A: Weiße Männer / Männer ohne Migrationshintergrund'],
-            ['B_arab',  'Gruppe B: Arabische / muslimische Männer']
+    var Q_DE = {
+        title: 'Fragebogen',
+        instruction: 'Im Folgenden finden Sie einige Aussagen und Fragen zu Menschen arabischer Herkunft, die in Deutschland leben. ' +
+                     'Bitte geben Sie bei jeder Aussage an, wie sehr Sie zustimmen oder wie Sie die Frage beantworten würden. ' +
+                     'Es gibt keine richtigen oder falschen Antworten. Wir interessieren uns für Ihre persönliche Meinung.',
+        parts: [
+            {
+                title: 'Teil A',
+                scale: ['Stimme überhaupt nicht zu', 'Stimme eher nicht zu', 'Stimme eher zu', 'Stimme voll und ganz zu'],
+                items: [
+                    'Menschen arabischer Herkunft haben Arbeitsplätze, die Deutsche haben sollten.',
+                    'Die meisten Menschen arabischer Herkunft, die hier Sozialleistungen erhalten, könnten auch ohne sie auskommen, wenn sie es versuchen würden.',
+                    'Deutsche und Menschen arabischer Herkunft können sich nie wirklich wohl miteinander fühlen, selbst wenn sie enge Freunde sind.',
+                    'Die meisten Politiker in Deutschland kümmern sich zu sehr um Menschen arabischer Herkunft und zu wenig um die durchschnittlichen Deutschen.',
+                    'Menschen arabischer Herkunft stammen aus weniger fähigen „Rassen“, und das erklärt, warum es ihnen nicht so gut geht wie den meisten Deutschen.',
+                    'Ich wäre bereit, sexuelle Beziehungen mit einer Person arabischer Herkunft zu haben.',
+                    'Es würde mir nichts ausmachen, wenn eine entsprechend qualifizierte Person arabischer Herkunft meine Vorgesetzte würde.',
+                    'Es würde mir nichts ausmachen, wenn eine Person arabischer Herkunft mit ähnlichem wirtschaftlichem Hintergrund wie meinem durch Heirat in meine engere Familie käme.'
+                ]
+            },
+            {
+                title: 'Teil B',
+                scale: ['Sehr unterschiedlich', 'Eher unterschiedlich', 'Eher ähnlich', 'Sehr ähnlich'],
+                items: [
+                    'Inwieweit unterscheiden sich Ihrer Meinung nach hier lebende Menschen arabischer Herkunft in Bezug auf ihre Ehrlichkeit von anderen Deutschen wie Ihnen selbst, oder inwieweit ähneln sie ihnen?'
+                ]
+            },
+            {
+                title: 'Teil C',
+                scale: ['Sehr störend', 'Störend', 'Etwas störend', 'Überhaupt nicht störend'],
+                items: [
+                    'Stellen Sie sich vor, eines Ihrer Kinder hätte Kinder mit einer Person, deren Hautfarbe und körperliche Merkmale sich stark von Ihren eigenen unterscheiden. Wie sehr würde es Sie stören, wenn Ihre Enkelkinder den Menschen auf Ihrer Seite der Familie äußerlich nicht ähnlich sähen?'
+                ]
+            }
         ],
-        traits: [
-            ['aggressiv',    'aggressiv'],
-            ['gewalttaetig', 'gewalttätig'],
-            ['bedrohlich',   'bedrohlich'],
-            ['kriminell',    'kriminell'],
-            ['gefaehrlich',  'gefährlich']
-        ],
-        scaleMin: '0 %',
-        scaleMax: '100 %',
         button: 'Weiter',
         error: 'Bitte beantworten Sie alle Fragen.'
     };
     
     var L = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
-    var LABELS = (L === 'de') ? LABELS_DE : LABELS_EN;
-    var SHUFFLE_TRAITS = true;
+    var Q = (L === 'de') ? Q_DE : Q_EN;
     
     // ---------- Reset globals ----------
     expl_done = false;
@@ -6567,25 +6783,6 @@ function explicit_measurementsRoutineBegin(snapshot) {
     expl_keys = [];
     expl_order = '';
     expl_rt = null;
-    
-    // Trait order (shuffled per participant)
-    var traits = LABELS.traits.slice();
-    if (SHUFFLE_TRAITS) {
-        for (var i = traits.length - 1; i > 0; i--) {
-            var j = Math.floor(Math.random() * (i + 1));
-            var tmp = traits[i]; traits[i] = traits[j]; traits[j] = tmp;
-        }
-    }
-    var orderArr = [];
-    for (var a = 0; a < traits.length; a++) { orderArr.push(traits[a][0]); }
-    expl_order = orderArr.join(',');
-    
-    // Column keys (always the same set, also when skipped in quick mode)
-    for (var ti0 = 0; ti0 < traits.length; ti0++) {
-        for (var gi0 = 0; gi0 < LABELS.groups.length; gi0++) {
-            expl_keys.push(LABELS.groups[gi0][0] + '_' + traits[ti0][0]);
-        }
-    }
     
     // Hide the PsychoJS canvas temporarily
     psychoJS.window._renderer.view.style.display = 'none';
@@ -6595,88 +6792,105 @@ function explicit_measurementsRoutineBegin(snapshot) {
     styleEl.id = 'expl-style';
     styleEl.textContent =
         '#expl-card, #expl-card * {box-sizing:border-box;}' +
-        '#expl-card .expl-grid {display:grid;grid-template-columns:minmax(90px,130px) 1fr 1fr;gap:18px 28px;align-items:start;}' +
-        '#expl-card .expl-head {font-weight:bold;font-size:14px;line-height:1.3;overflow-wrap:anywhere;word-break:break-word;}' +
-        '#expl-card .expl-trait {font-weight:bold;font-size:16px;overflow-wrap:anywhere;word-break:break-word;padding-top:2px;}' +
-        '#expl-card .expl-cell {min-width:0;}' +
-        '#expl-card input[type=range] {width:100%;margin:4px 0 0 0;background:transparent;-webkit-appearance:none;appearance:none;height:24px;cursor:pointer;}' +
-        '#expl-card input[type=range]::-webkit-slider-runnable-track {height:6px;background:#555;border-radius:3px;}' +
-        '#expl-card input[type=range]::-moz-range-track {height:6px;background:#555;border-radius:3px;}' +
-        '#expl-card input[type=range]::-webkit-slider-thumb {-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:darkgrey;border:2px solid white;margin-top:-7px;}' +
-        '#expl-card input[type=range]::-moz-range-thumb {width:16px;height:16px;border-radius:50%;background:darkgrey;border:2px solid white;}' +
-        '#expl-card input[type=range].expl-untouched::-webkit-slider-thumb {opacity:0;}' +
-        '#expl-card input[type=range].expl-untouched::-moz-range-thumb {opacity:0;}' +
-        '#expl-card .expl-scale {display:flex;justify-content:space-between;font-size:12px;color:#aaa;}' +
-        '#expl-card .expl-val {text-align:center;font-size:13px;min-height:17px;margin-top:2px;}' +
-        '@media (max-width:640px) {' +
-        '  #expl-card .expl-grid {grid-template-columns:1fr 1fr;gap:12px 16px;}' +
-        '  #expl-card .expl-spacer {display:none;}' +
-        '  #expl-card .expl-trait {grid-column:1 / span 2;margin-top:10px;}' +
+        '#expl-card h3 {font-size:17px;margin:28px 0 0 0;}' +
+        '#expl-card .expl-row {display:grid;grid-template-columns:minmax(0,2.3fr) repeat(4,minmax(64px,1fr));gap:6px;align-items:center;padding:10px 12px;border-radius:6px;border:1px solid transparent;}' +
+        '#expl-card .expl-row.expl-item {background:#2c2c2c;margin-top:8px;}' +
+        '#expl-card .expl-headrow {font-size:12px;color:#aaa;text-align:center;line-height:1.2;margin-top:10px;padding-top:0;padding-bottom:0;}' +
+        '#expl-card .expl-headrow span {overflow-wrap:anywhere;word-break:break-word;}' +
+        '#expl-card .expl-q {font-size:14.5px;line-height:1.4;overflow-wrap:anywhere;word-break:break-word;}' +
+        '#expl-card .expl-num {color:#aaa;margin-right:4px;}' +
+        '#expl-card .expl-opt {display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;padding:8px 0;min-height:36px;}' +
+        '#expl-card .expl-opt input {width:18px;height:18px;margin:0;cursor:pointer;accent-color:#cfcfcf;flex:0 0 auto;}' +
+        '#expl-card .expl-lbl {display:none;font-size:14px;overflow-wrap:anywhere;}' +
+        '#expl-card .expl-missing {border-color:#ff8080 !important;}' +
+        '@media (max-width:700px) {' +
+        '  #expl-card .expl-row {grid-template-columns:1fr;}' +
+        '  #expl-card .expl-headrow {display:none;}' +
+        '  #expl-card .expl-opt {justify-content:flex-start;}' +
+        '  #expl-card .expl-lbl {display:inline;}' +
         '}';
     document.head.appendChild(styleEl);
+    
+    // ---------- Build HTML ----------
+    var itemNo = 0;
+    var html = '<div id="expl-card" style="background:#222;padding:32px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,900px);max-height:94vh;overflow-y:auto;">' +
+        '<h2 style="margin-top:0;">' + Q.title + '</h2>' +
+        '<p style="margin:0 0 8px 0;line-height:1.5;overflow-wrap:anywhere;">' + Q.instruction + '</p>';
+    
+    for (var p = 0; p < Q.parts.length; p++) {
+        var part = Q.parts[p];
+        html += '<h3>' + part.title + '</h3>';
+    
+        // scale labels once per part (wide screens)
+        html += '<div class="expl-row expl-headrow"><div></div>';
+        for (var sc = 0; sc < part.scale.length; sc++) { html += '<span>' + part.scale[sc] + '</span>'; }
+        html += '</div>';
+    
+        for (var it = 0; it < part.items.length; it++) {
+            itemNo++;
+            var key = 'item' + (itemNo < 10 ? '0' : '') + itemNo;
+            expl_keys.push(key);
+    
+            html += '<div class="expl-row expl-item" id="expl-row-' + key + '">' +
+                '<div class="expl-q"><span class="expl-num">' + itemNo + '.</span>' + part.items[it] + '</div>';
+            for (var v = 0; v < part.scale.length; v++) {
+                html += '<label class="expl-opt" title="' + part.scale[v] + '">' +
+                    '<input type="radio" name="expl-' + key + '" value="' + (v + 1) + '">' +
+                    '<span class="expl-lbl">' + part.scale[v] + '</span></label>';
+            }
+            html += '</div>';
+        }
+    }
+    
+    expl_order = expl_keys.join(',');
+    
+    html += '<button id="expl-submit" style="width:100%;padding:12px;margin-top:28px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + Q.button + '</button>' +
+        '<p id="expl-error" style="color:red;display:none;margin-top:10px;">' + Q.error + '</p>' +
+        '</div>';
     
     // ---------- Overlay ----------
     var overlay = document.createElement('div');
     overlay.id = 'expl-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
-    
-    var html = '<div id="expl-card" style="background:#222;padding:32px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,780px);max-height:94vh;overflow-y:auto;">' +
-        '<h2 style="margin-top:0;">' + LABELS.title + '</h2>' +
-        '<p style="margin:0 0 24px 0;line-height:1.4;overflow-wrap:anywhere;">' + LABELS.instruction + '</p>' +
-        '<div class="expl-grid">' +
-        '<div class="expl-spacer"></div>';
-    
-    for (var g = 0; g < LABELS.groups.length; g++) {
-        html += '<div class="expl-head">' + LABELS.groups[g][1] + '</div>';
-    }
-    
-    for (var t = 0; t < traits.length; t++) {
-        html += '<div class="expl-trait">' + traits[t][1] + '</div>';
-        for (var g2 = 0; g2 < LABELS.groups.length; g2++) {
-            var key = LABELS.groups[g2][0] + '_' + traits[t][0];
-            html += '<div class="expl-cell">' +
-                '<input id="expl-sl-' + key + '" class="expl-untouched" type="range" min="0" max="100" step="1" value="50">' +
-                '<div class="expl-scale"><span>' + LABELS.scaleMin + '</span><span>' + LABELS.scaleMax + '</span></div>' +
-                '<div id="expl-val-' + key + '" class="expl-val"></div>' +
-                '</div>';
-        }
-    }
-    
-    html += '</div>' +
-        '<button id="expl-submit" style="width:100%;padding:12px;margin-top:28px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + LABELS.button + '</button>' +
-        '<p id="expl-error" style="color:red;display:none;margin-top:10px;">' + LABELS.error + '</p>' +
-        '</div>';
-    
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
     
-    // ---------- Slider logic ----------
-    var touched = {};
-    function bindSlider(k) {
-        var el = document.getElementById('expl-sl-' + k);
-        var valEl = document.getElementById('expl-val-' + k);
-        function mark() {
-            touched[k] = true;
-            el.classList.remove('expl-untouched');
-            valEl.textContent = el.value + ' %';
-        }
-        el.addEventListener('pointerdown', mark);
-        el.addEventListener('input', mark);
-        el.addEventListener('keydown', mark);
+    // ---------- Answer logic ----------
+    function answerOf(k) {
+        var el = document.querySelector('input[name="expl-' + k + '"]:checked');
+        return el ? parseInt(el.value, 10) : null;
     }
-    for (var s = 0; s < expl_keys.length; s++) { bindSlider(expl_keys[s]); }
+    
+    // remove the red outline as soon as an item is answered
+    var radios = overlay.querySelectorAll('input[type=radio]');
+    for (var r = 0; r < radios.length; r++) {
+        radios[r].addEventListener('change', function() {
+            var row = this.closest('.expl-row');
+            if (row) { row.classList.remove('expl-missing'); }
+        });
+    }
     
     var tStart = performance.now();
     
     document.getElementById('expl-submit').addEventListener('click', function() {
+        var firstMissing = null;
         for (var m = 0; m < expl_keys.length; m++) {
-            if (!touched[expl_keys[m]]) {
-                document.getElementById('expl-error').style.display = 'block';
-                return;
+            var row = document.getElementById('expl-row-' + expl_keys[m]);
+            if (answerOf(expl_keys[m]) === null) {
+                row.classList.add('expl-missing');
+                if (!firstMissing) { firstMissing = row; }
+            } else {
+                row.classList.remove('expl-missing');
             }
         }
+        if (firstMissing) {
+            document.getElementById('expl-error').style.display = 'block';
+            firstMissing.scrollIntoView({behavior: 'smooth', block: 'center'});
+            return;
+        }
+    
         for (var n = 0; n < expl_keys.length; n++) {
-            expl_data[expl_keys[n]] = parseInt(document.getElementById('expl-sl-' + expl_keys[n]).value, 10);
+            expl_data[expl_keys[n]] = answerOf(expl_keys[n]);
         }
         expl_rt = (performance.now() - tStart) / 1000;
     
@@ -7288,9 +7502,9 @@ function ExitRoutineBegin(snapshot) {
         rows.push(cur);
     }
     
-    var csvData = convertToCSV(rows);
+    var csvData = convertToCSV(makeTidyData(rows));
     var filename =
-        "participant_" + participantID + "_" + sessionTag + "_final.csv";
+        "participant_" + participantID + "_final.csv";
     
     // Up to 3 attempts per destination
     for (var attempt = 1; attempt <= 3; attempt++) {
