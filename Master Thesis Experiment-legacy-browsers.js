@@ -5515,7 +5515,7 @@ function Face_RankingRoutineEachFrame() {
         continueRoutine = true;
     }
     
-    applyLang(ranking_bar_left,  ranking_bar_right, finish_ranking_text);
+    applyLang(ranking_bar_left,  ranking_bar_right, finish_ranking_text, ranking_description);
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
