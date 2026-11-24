@@ -141,6 +141,32 @@ function applyLang() {
         c.setText(txt);
     }
 }
+
+// ---------- Scene counter (shown during the scene loop) ----------
+var scene_nr = 0;
+var scene_total = 0;
+
+
+var el;
+function showSceneCounter() {
+    var el = document.getElementById('scene-counter');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'scene-counter';
+        el.style.cssText = 'position:fixed;top:12px;left:12px;z-index:10000;padding:6px 12px;' +
+            'border-radius:4px;background:rgba(40,40,40,0.85);color:white;font-family:Arial;' +
+            'font-size:16px;pointer-events:none;';
+        document.body.appendChild(el);
+    }
+    var label = (typeof lang !== 'undefined' && lang === 'de') ? 'Szene' : 'Scene';
+    el.textContent = label + ' ' + scene_nr + '/' + scene_total;
+}
+
+
+function hideSceneCounter() {
+    var el = document.getElementById('scene-counter');
+    if (el) { el.parentNode.removeChild(el); }
+}
 // Run 'Before Experiment' code from snap_pictures
 
 function distanceCalc(pos1, pos2) {
@@ -229,9 +255,12 @@ function makeTidyTables(rows) {
         // ---------- face ranking ----------
         if (has(r, 'rank_1')) {
             // the scene description is only in the first ranking row of a scene -> reuse it for the 2nd
-            if (has(r, 'response_box.text')) {
-                lastDesc = { text: r['response_box.text'], chars: r['description_char_count'],
-                             words: r['description_word_count'], time: num(r['Scene_Description.duration']) };
+            if (has(r, 'face_description') || has(r, 'action_description')) {
+                lastDesc = {
+                    face: r['face_description'], face_chars: r['face_description_char_count'], face_words: r['face_description_word_count'],
+                    action: r['action_description'], action_chars: r['action_description_char_count'], action_words: r['action_description_word_count'],
+                    time: num(r['Scene_Description.duration'])
+                };
             }
             lastRanking = {
                 scene_nr:            plusOne(r['Scene_Loop.thisN']),
@@ -241,10 +270,13 @@ function makeTidyTables(rows) {
                 face_gender:         r['gender'],   // gender of the scene face (participant gender stays in 'gender')
                 version:             r['version'],
                 cond_id:             r['cond_id'],
-                description:         lastDesc.text || '',
-                description_chars:   lastDesc.chars || '',
-                description_words:   lastDesc.words || '',
-                description_time:    lastDesc.time || '',
+                face_description:          lastDesc.face || '',
+                face_description_chars:    lastDesc.face_chars || '',
+                face_description_words:    lastDesc.face_words || '',
+                action_description:        lastDesc.action || '',
+                action_description_chars:  lastDesc.action_chars || '',
+                action_description_words:  lastDesc.action_words || '',
+                description_time:          lastDesc.time || '',
                 ranking_nr:          plusOne(r['Face_Ranking_Loop.thisN']),
                 face_set_number:     r['face_set_number'],
                 face_folder:         r['face_folder'],
@@ -593,6 +625,9 @@ psychoJS.start({
   resources: [
     // resources:
     {'name': 'default.png', 'path': 'https://pavlovia.org/assets/default/default.png'},
+    {'name': 'resources/scenes/example/face.png', 'path': 'resources/scenes/example/face.png'},
+    {'name': 'resources/scenes/example/item.jpg', 'path': 'resources/scenes/example/item.jpg'},
+    {'name': 'resources/scenes/example/scene.jpg', 'path': 'resources/scenes/example/scene.jpg'},
     {'name': 'resources/iat/blocks_order_en.xlsx', 'path': 'resources/iat/blocks_order_en.xlsx'},
     {'name': 'resources/iat/cong_test_en.xlsx', 'path': 'resources/iat/cong_test_en.xlsx'},
     {'name': 'resources/iat/cong_train_en.xlsx', 'path': 'resources/iat/cong_train_en.xlsx'},
@@ -682,9 +717,6 @@ var text_continue_triple;
 var key_resp_5;
 var timer_text_2;
 var Scene_DescriptionClock;
-var task_description;
-var response_box;
-var key_resp_description;
 var hint_text;
 var load_scene_facesClock;
 var wait_text_2;
@@ -1236,46 +1268,6 @@ async function experimentInit() {
   
   // Initialize components for Routine "Scene_Description"
   Scene_DescriptionClock = new util.Clock();
-  task_description = new visual.TextStim({
-    win: psychoJS.window,
-    name: 'task_description',
-    text: 'Whats your overall impression of the person & what is she doing?',
-    font: 'Arial',
-    units: undefined, 
-    pos: [0, 0.3], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
-    languageStyle: 'LTR',
-    color: new util.Color('white'),  opacity: undefined,
-    depth: 0.0 
-  });
-  
-  response_box = new visual.TextBox({
-    win: psychoJS.window,
-    name: 'response_box',
-    text: '',
-    placeholder: 'Enter the description of the Person..',
-    font: 'Arial',
-    pos: [0, 0], 
-    draggable: false,
-    letterHeight: 0.03,
-    lineSpacing: 1.0,
-    size: [1, 0.5],  units: undefined, 
-    ori: 0.0,
-    color: 'black', colorSpace: 'rgb',
-    fillColor: [0.6549, 0.6549, 0.6549], borderColor: 'black',
-    languageStyle: 'LTR',
-    bold: false, italic: false,
-    opacity: undefined,
-    padding: 0.0,
-    alignment: 'top-left',
-    overflow: 'scroll',
-    editable: true,
-    multiline: true,
-    anchor: 'center',
-    depth: -1.0 
-  });
-  
-  key_resp_description = new core.Keyboard({psychoJS: psychoJS, clock: new util.Clock(), waitForStart: true});
-  
   hint_text = new visual.TextStim({
     win: psychoJS.window,
     name: 'hint_text',
@@ -1285,7 +1277,7 @@ async function experimentInit() {
     pos: [0, (- 0.35)], draggable: false, height: 0.03,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
-    depth: -3.0 
+    depth: 0.0 
   });
   
   // Initialize components for Routine "load_scene_faces"
@@ -3628,7 +3620,14 @@ function InstructionsRoutineBegin(snapshot) {
     key_resp.keys = undefined;
     key_resp.rt = undefined;
     _key_resp_allKeys = [];
-    // ---------- Texts (adjust here) ----------
+    // ---------- Example images ----------
+    var EXAMPLE_IMAGES = [
+        'resources/scenes/example/item.jpg',
+        'resources/scenes/example/scene.jpg',
+        'resources/scenes/example/face.png'
+    ];
+    
+    // ---------- Texts ----------
     var TEXT_EN = {
         title: 'Welcome to the experiment',
         intro: 'In this study, you will complete a series of 20 trials consisting of three phases.',
@@ -3636,7 +3635,7 @@ function InstructionsRoutineBegin(snapshot) {
             ['Phase 1 – Scene Presentation',
              'You will first see two pictures describing a scene and one picture of a face.'],
             ['Phase 2 – Face Description',
-             'After viewing the scene, you will be asked to briefly describe the face of the person shown in the scene using your own words.'],
+             'After viewing the scene, you will be asked two short questions: to describe the face of the person, and to describe what the person is doing, in your own words.'],
             ['Phase 3 – Face Ranking',
              'Your task is to rank the faces according to how likely they match the previously shown scene.<br><br>' +
              'Place the face you think matches the scene best closer to <b>“Most likely”</b> and the face you think matches the scene least closer to <b>“Least likely”</b>.'],
@@ -3644,8 +3643,25 @@ function InstructionsRoutineBegin(snapshot) {
              'Afterwards, you will complete a short association task. Words and images appear one at a time, and you assign each one to a category as quickly and as accurately as possible using the keyboard. Detailed instructions will follow before this task starts.']
         ],
         note: 'There are no correct or incorrect answers.',
-        button: 'Start',
-        hint: 'or press ENTER to begin'
+        button: 'Next',
+        hint: 'or press ENTER to continue',
+    
+        // page 2: example
+        exTitle: 'Example',
+        exIntro: 'In each trial you will see two scene pictures and one face picture, as in this example. Afterwards you will answer two questions. Below you can see what a sample answer could look like.',
+        exCaptions: ['Scene picture', 'Scene picture', 'Face'],
+        exSampleLabel: 'Sample answer',
+        exQuestionLabel: 'Question',
+        exQA: [
+            ['Provide a description of the person’s face so that we may identify them more easily.',
+             'The young person pictured has a fair, even complexion with light freckles on her cheeks and nose, as well as an oval face shape. Her narrow, straight, medium-brown eyebrows are striking. Below them are her almond-shaped, dark eyes with a calm gaze. She has a narrow, straight nose and full, slightly curved lips with a neutral facial expression.'],
+            ['Based on the other images, describe what the person is doing.',
+             'Based on the images shown, the person is using a green drill to drill holes in the bathroom wall in order to hang the mirror. She is mounting the piece of furniture above the two sinks on the tiled wall.']
+        ],
+        exNote: 'Your answers do not have to match this wording. Please describe what you see in your own words.',
+        back: 'Back',
+        start: 'Start',
+        exHint: 'or press ENTER to begin'
     };
     
     var TEXT_DE = {
@@ -3655,7 +3671,7 @@ function InstructionsRoutineBegin(snapshot) {
             ['Phase 1 – Szenenpräsentation',
              'Zunächst sehen Sie zwei Bilder einer zusammenhängenden Szene und ein Bild von einem Gesicht.'],
             ['Phase 2 – Gesichtsbeschreibung',
-             'Nach der Szene werden Sie gebeten, das Gesicht der in der Szene gezeigten Person kurz in eigenen Worten zu beschreiben.'],
+             'Nach der Szene werden Sie zwei kurze Fragen beantworten: Sie beschreiben das Gesicht der Person und was die Person tut, jeweils in eigenen Worten.'],
             ['Phase 3 – Gesichter-Rangfolge',
              'Ihre Aufgabe ist es, die Gesichter danach in eine Rangfolge zu bringen, wie wahrscheinlich sie zu der zuvor gezeigten Szene passen.<br><br>' +
              'Platzieren Sie das Gesicht, das Ihrer Meinung nach am besten zur Szene passt, näher an <b>„Am wahrscheinlichsten“</b> und das Gesicht, das am wenigsten zur Szene passt, näher an <b>„Am unwahrscheinlichsten“</b>.'],
@@ -3663,8 +3679,25 @@ function InstructionsRoutineBegin(snapshot) {
              'Anschließend bearbeiten Sie eine kurze Assoziationsaufgabe. Wörter und Bilder erscheinen nacheinander, und Sie ordnen jedes davon so schnell und so genau wie möglich mithilfe der Tastatur einer Kategorie zu. Ausführliche Anweisungen folgen vor Beginn dieser Aufgabe.']
         ],
         note: 'Es gibt keine richtigen oder falschen Antworten.',
-        button: 'Start',
-        hint: 'oder drücken Sie die ENTER-Taste, um zu beginnen'
+        button: 'Weiter',
+        hint: 'oder drücken Sie die ENTER-Taste, um fortzufahren',
+    
+        // page 2: example
+        exTitle: 'Beispiel',
+        exIntro: 'In jedem Durchgang sehen Sie zwei Bilder einer Szene und ein Bild eines Gesichts, wie in diesem Beispiel. Anschließend beantworten Sie zwei Fragen. Unten sehen Sie, wie eine Beispielantwort aussehen könnte.',
+        exCaptions: ['Szenenbild', 'Szenenbild', 'Gesicht'],
+        exSampleLabel: 'Beispielantwort',
+        exQuestionLabel: 'Frage',
+        exQA: [
+            ['Beschreiben Sie das Gesicht der Person, damit wir sie leichter identifizieren können.',
+             'Die abgebildete junge Person hat einen hellen, gleichmäßigen Teint mit leichten Sommersprossen auf Wangen und Nase sowie eine ovale Gesichtsform. Auffällig sind ihre schmalen, geraden, mittelbraunen Augenbrauen. Darunter befinden sich ihre mandelförmigen, dunklen Augen mit ruhigem Blick. Sie hat eine schmale, gerade Nase und volle, leicht geschwungene Lippen bei neutralem Gesichtsausdruck.'],
+            ['Beschreiben Sie anhand der anderen Bilder, was die Person tut.',
+             'Anhand der gezeigten Bilder bohrt die Person mit einem grünen Bohrer Löcher in die Badezimmerwand, um den Spiegel aufzuhängen. Sie montiert das Möbelstück über den beiden Waschbecken an der gefliesten Wand.']
+        ],
+        exNote: 'Ihre Antworten müssen nicht diesem Wortlaut entsprechen. Bitte beschreiben Sie, was Sie sehen, in Ihren eigenen Worten.',
+        back: 'Zurück',
+        start: 'Start',
+        exHint: 'oder drücken Sie die ENTER-Taste, um zu beginnen'
     };
     
     var L = (typeof lang !== 'undefined' && lang === 'de') ? 'de' : 'en';
@@ -3686,7 +3719,22 @@ function InstructionsRoutineBegin(snapshot) {
         '#instr-card p {margin:0;line-height:1.5;font-size:15px;overflow-wrap:anywhere;word-break:break-word;}' +
         '#instr-card .instr-phase {background:#2c2c2c;border-radius:6px;padding:14px 18px;margin-top:14px;}' +
         '#instr-card .instr-phase h3 {font-size:16px;margin:0 0 6px 0;overflow-wrap:anywhere;}' +
-        '#instr-card .instr-hint {text-align:center;font-size:13px;color:#aaa;margin-top:10px;}';
+        '#instr-card .instr-hint {text-align:center;font-size:13px;color:#aaa;margin-top:10px;}' +
+        '#instr-card .instr-imgs {display:flex;gap:12px;margin-top:16px;}' +
+        '#instr-card .instr-imgbox {flex:1 1 0;min-width:0;text-align:center;}' +
+        '#instr-card .instr-imgbox img {width:100%;height:auto;max-height:30vh;object-fit:contain;background:#111;border-radius:6px;display:block;}' +
+        '#instr-card .instr-cap {font-size:12px;color:#aaa;margin-top:4px;}' +
+        '#instr-card .instr-qa {background:#2c2c2c;border-radius:6px;padding:14px 18px;margin-top:14px;}' +
+        '#instr-card .instr-qa h3 {font-size:15px;margin:0 0 8px 0;overflow-wrap:anywhere;}' +
+        '#instr-card .instr-sample {padding:10px 12px;background:#111;border-left:3px solid #666;border-radius:4px;}' +
+        '#instr-card .instr-sample-label {font-size:12px;color:#aaa;margin-bottom:4px;}' +
+        '#instr-card .instr-sample p {font-style:italic;}' +
+        '#instr-card .instr-btns {display:flex;gap:12px;margin-top:22px;}' +
+        '#instr-card .instr-btns button {padding:12px;border:none;border-radius:4px;font-size:16px;cursor:pointer;color:white;}' +
+        '@media (max-width:560px) {' +
+        '  #instr-card .instr-imgs {flex-direction:column;}' +
+        '  #instr-card .instr-imgbox img {max-height:24vh;}' +
+        '}';
     document.head.appendChild(inStyle);
     
     // ---------- Overlay ----------
@@ -3694,24 +3742,66 @@ function InstructionsRoutineBegin(snapshot) {
     overlay.id = 'instr-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
     
-    var html = '<div id="instr-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,700px);max-height:94vh;overflow-y:auto;">' +
-        '<h2 style="margin-top:0;">' + TEXT.title + '</h2>' +
+    // ----- page 1: phases -----
+    var p1 = '<h2 style="margin-top:0;">' + TEXT.title + '</h2>' +
         '<p>' + TEXT.intro + '</p>';
-    
     for (var i = 0; i < TEXT.phases.length; i++) {
-        html += '<div class="instr-phase"><h3>' + TEXT.phases[i][0] + '</h3><p>' + TEXT.phases[i][1] + '</p></div>';
+        p1 += '<div class="instr-phase"><h3>' + TEXT.phases[i][0] + '</h3><p>' + TEXT.phases[i][1] + '</p></div>';
     }
+    p1 += '<p style="margin-top:20px;font-weight:bold;">' + TEXT.note + '</p>' +
+        '<div class="instr-btns"><button id="instr-next" style="flex:1;background:darkgrey;">' + TEXT.button + '</button></div>' +
+        '<p class="instr-hint">' + TEXT.hint + '</p>';
     
-    html += '<p style="margin-top:20px;font-weight:bold;">' + TEXT.note + '</p>' +
-        '<button id="instr-submit" style="width:100%;padding:12px;margin-top:22px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + TEXT.button + '</button>' +
-        '<p class="instr-hint">' + TEXT.hint + '</p>' +
+    // ----- page 2: example -----
+    var p2 = '<h2 style="margin-top:0;">' + TEXT.exTitle + '</h2>' +
+        '<p>' + TEXT.exIntro + '</p>' +
+        '<div class="instr-imgs">';
+    for (var k = 0; k < EXAMPLE_IMAGES.length; k++) {
+        p2 += '<div class="instr-imgbox"><img src="' + EXAMPLE_IMAGES[k] + '" alt="' + TEXT.exCaptions[k] + '">' +
+              '<div class="instr-cap">' + TEXT.exCaptions[k] + '</div></div>';
+    }
+    p2 += '</div>';
+    for (var q = 0; q < TEXT.exQA.length; q++) {
+        p2 += '<div class="instr-qa">' +
+              '<h3>' + TEXT.exQuestionLabel + ' ' + (q + 1) + ': ' + TEXT.exQA[q][0] + '</h3>' +
+              '<div class="instr-sample"><div class="instr-sample-label">' + TEXT.exSampleLabel + '</div><p>' + TEXT.exQA[q][1] + '</p></div>' +
+              '</div>';
+    }
+    p2 += '<p style="margin-top:16px;color:#aaa;font-size:14px;">' + TEXT.exNote + '</p>' +
+        '<div class="instr-btns">' +
+            '<button id="instr-back" style="flex:1;background:#444;">' + TEXT.back + '</button>' +
+            '<button id="instr-submit" style="flex:2;background:darkgrey;">' + TEXT.start + '</button>' +
+        '</div>' +
+        '<p class="instr-hint">' + TEXT.exHint + '</p>';
+    
+    overlay.innerHTML =
+        '<div id="instr-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,760px);max-height:94vh;overflow-y:auto;">' +
+          '<div id="instr-page1">' + p1 + '</div>' +
+          '<div id="instr-page2" style="display:none;">' + p2 + '</div>' +
         '</div>';
-    
-    overlay.innerHTML = html;
     document.body.appendChild(overlay);
     
-    // ---------- Finish logic ----------
+    // warn in the console if an example image can't be loaded
+    var exImgs = overlay.querySelectorAll('.instr-imgbox img');
+    for (var e = 0; e < exImgs.length; e++) {
+        exImgs[e].addEventListener('error', function() {
+            console.warn('Example image not found: ' + this.getAttribute('src'));
+        });
+    }
+    
+    // ---------- Page and finish logic ----------
     var inStart = performance.now();
+    var lastAction = performance.now();
+    var instrPage = 1;
+    var instrCard = document.getElementById('instr-card');
+    
+    function showPage(n) {
+        instrPage = n;
+        lastAction = performance.now();
+        document.getElementById('instr-page1').style.display = (n === 1) ? 'block' : 'none';
+        document.getElementById('instr-page2').style.display = (n === 2) ? 'block' : 'none';
+        instrCard.scrollTop = 0;
+    }
     
     function instrFinish() {
         if (instr_done) { return; }
@@ -3726,13 +3816,16 @@ function InstructionsRoutineBegin(snapshot) {
         instr_done = true;
     }
     
+    document.getElementById('instr-next').addEventListener('click', function() { showPage(2); });
+    document.getElementById('instr-back').addEventListener('click', function() { showPage(1); });
     document.getElementById('instr-submit').addEventListener('click', instrFinish);
     
-    // ENTER key (ignored during the first 400 ms and for held keys)
-    instr_keyHandler = function(e) {
-        if (e.key === 'Enter' && !e.repeat && (performance.now() - inStart) > 400) {
-            e.preventDefault();
-            instrFinish();
+    // ENTER key: page 1 -> page 2 -> start (ignored for held keys and within 400 ms of the last action)
+    instr_keyHandler = function(ev) {
+        if (ev.key === 'Enter' && !ev.repeat && (performance.now() - lastAction) > 400) {
+            ev.preventDefault();
+            if (instrPage === 1) { showPage(2); }
+            else { instrFinish(); }
         }
     };
     document.addEventListener('keydown', instr_keyHandler);
@@ -4022,6 +4115,8 @@ function Condition_LoadingRoutineEnd(snapshot) {
 
 
 var load_scene_picturesMaxDurationReached;
+var scene_nr;
+var scene_total;
 var load_scene_picturesMaxDuration;
 var load_scene_picturesComponents;
 function load_scene_picturesRoutineBegin(snapshot) {
@@ -4038,6 +4133,11 @@ function load_scene_picturesRoutineBegin(snapshot) {
     routineTimer.reset();
     load_scene_picturesMaxDurationReached = false;
     // update component parameters for each repeat
+    // current scene number (snapshot = this iteration of Scene_Loop)
+    scene_nr = snapshot.thisN + 1;
+    scene_total = snapshot.nTotal;
+    showSceneCounter();
+    
     window.facesPromise = null;
     sceneImagesReady = false;
     
@@ -4566,7 +4666,11 @@ function Scene_Presentation_TripleRoutineEnd(snapshot) {
 
 
 var Scene_DescriptionMaxDurationReached;
-var _key_resp_description_allKeys;
+var sd_done;
+var sd_face;
+var sd_action;
+var sd_rt;
+var sd_keyHandler;
 var Scene_DescriptionMaxDuration;
 var Scene_DescriptionComponents;
 function Scene_DescriptionRoutineBegin(snapshot) {
@@ -4583,18 +4687,140 @@ function Scene_DescriptionRoutineBegin(snapshot) {
     routineTimer.reset();
     Scene_DescriptionMaxDurationReached = false;
     // update component parameters for each repeat
-    response_box.setText('');
-    response_box.refresh();
-    key_resp_description.keys = undefined;
-    key_resp_description.rt = undefined;
-    _key_resp_description_allKeys = [];
+    // ---------- Texts ----------
+    var SD_MIN_CHARS = 50;   // minimum non-whitespace characters per answer
+    
+    var SD_TEXT_EN = {
+        title: 'Scene description',
+        questions: [
+            'Provide a description of the person’s face so that we may identify them more easily.',
+            'Based on the other images, describe what the person is doing.'
+        ],
+        placeholders: ['Describe the person’s face...', 'Describe what the person is doing...'],
+        counter: '{n} / at least {min} characters',
+        button: 'Continue',
+        hint: 'or press ENTER to continue (SHIFT+ENTER for a new line)',
+        error: 'Please write at least {min} characters in each box.'
+    };
+    
+    var SD_TEXT_DE = {
+        title: 'Szenenbeschreibung',
+        questions: [
+            'Beschreiben Sie das Gesicht der Person, damit wir sie leichter identifizieren können.',
+            'Beschreiben Sie anhand der anderen Bilder, was die Person tut.'
+        ],
+        placeholders: ['Beschreiben Sie das Gesicht der Person...', 'Beschreiben Sie, was die Person tut...'],
+        counter: '{n} / mindestens {min} Zeichen',
+        button: 'Weiter',
+        hint: 'oder drücken Sie ENTER, um fortzufahren (SHIFT+ENTER für eine neue Zeile)',
+        error: 'Bitte schreiben Sie in jedes Feld mindestens {min} Zeichen.'
+    };
+    
+    var SD = (typeof lang !== 'undefined' && lang === 'de') ? SD_TEXT_DE : SD_TEXT_EN;
+    
+    // ---------- Reset globals ----------
+    sd_done = false;
+    sd_face = '';
+    sd_action = '';
+    sd_rt = null;
+    sd_keyHandler = null;
+    
+    function sdCount(txt) { return txt ? txt.replace(/\s/g, '').length : 0; }
+    
+    // Hide the PsychoJS canvas temporarily
+    psychoJS.window._renderer.view.style.display = 'none';
+    
+    // ---------- Styles ----------
+    var sdStyle = document.createElement('style');
+    sdStyle.id = 'sd-style';
+    sdStyle.textContent =
+        '#sd-card, #sd-card * {box-sizing:border-box;}' +
+        '#sd-card p {margin:0;line-height:1.5;font-size:15px;overflow-wrap:anywhere;word-break:break-word;}' +
+        '#sd-card .sd-q {background:#2c2c2c;border-radius:6px;padding:14px 18px;margin-top:14px;}' +
+        '#sd-card .sd-q label {display:block;font-size:15px;font-weight:bold;margin-bottom:8px;overflow-wrap:anywhere;}' +
+        '#sd-card textarea {width:100%;min-height:120px;padding:10px;font-size:15px;font-family:Arial;border-radius:4px;border:none;resize:vertical;}' +
+        '#sd-card .sd-count {font-size:12px;color:#aaa;margin-top:4px;text-align:right;}' +
+        '#sd-card .sd-count.ok {color:#7c7;}' +
+        '#sd-card .sd-hint {text-align:center;font-size:13px;color:#aaa;margin-top:10px;}';
+    document.head.appendChild(sdStyle);
+    
+    // ---------- Overlay ----------
+    var sdHtml = '<h2 style="margin-top:0;">' + SD.title + '</h2>';
+    for (var i = 0; i < SD.questions.length; i++) {
+        sdHtml +=
+            '<div class="sd-q">' +
+              '<label for="sd-answer-' + i + '">' + (i + 1) + '. ' + SD.questions[i] + '</label>' +
+              '<textarea id="sd-answer-' + i + '" placeholder="' + SD.placeholders[i] + '"></textarea>' +
+              '<div class="sd-count" id="sd-count-' + i + '"></div>' +
+            '</div>';
+    }
+    sdHtml +=
+        '<button id="sd-submit" style="width:100%;padding:12px;margin-top:22px;background:darkgrey;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">' + SD.button + '</button>' +
+        '<p id="sd-error" style="color:red;display:none;margin-top:10px;">' + SD.error.replace('{min}', SD_MIN_CHARS) + '</p>' +
+        '<p class="sd-hint">' + SD.hint + '</p>';
+    
+    var sdOverlay = document.createElement('div');
+    sdOverlay.id = 'sd-overlay';
+    sdOverlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:10px;box-sizing:border-box;';
+    sdOverlay.innerHTML = '<div id="sd-card" style="background:#222;padding:36px;border-radius:8px;color:white;font-family:Arial;width:min(94vw,760px);max-height:94vh;overflow-y:auto;">' + sdHtml + '</div>';
+    document.body.appendChild(sdOverlay);
+    
+    var sdBoxes = [document.getElementById('sd-answer-0'), document.getElementById('sd-answer-1')];
+    var sdStart = performance.now();
+    
+    // ---------- Live character counters ----------
+    function sdUpdateCounts() {
+        for (var k = 0; k < sdBoxes.length; k++) {
+            var n = sdCount(sdBoxes[k].value);
+            var el = document.getElementById('sd-count-' + k);
+            el.textContent = SD.counter.replace('{n}', n).replace('{min}', SD_MIN_CHARS);
+            el.className = 'sd-count' + (n >= SD_MIN_CHARS ? ' ok' : '');
+        }
+    }
+    for (var b = 0; b < sdBoxes.length; b++) {
+        sdBoxes[b].addEventListener('input', function() {
+            sdUpdateCounts();
+            document.getElementById('sd-error').style.display = 'none';
+        });
+    }
+    sdUpdateCounts();
+    sdBoxes[0].focus();
+    
+    // ---------- Submit ----------
+    function sdFinish() {
+        if (sd_done) { return; }
+        var a0 = sdBoxes[0].value, a1 = sdBoxes[1].value;
+        if (sdCount(a0) < SD_MIN_CHARS || sdCount(a1) < SD_MIN_CHARS) {
+            document.getElementById('sd-error').style.display = 'block';
+            return;
+        }
+        sd_face = a0.trim();
+        sd_action = a1.trim();
+        sd_rt = (performance.now() - sdStart) / 1000;
+        if (sd_keyHandler) {
+            document.removeEventListener('keydown', sd_keyHandler);
+            sd_keyHandler = null;
+        }
+        document.body.removeChild(sdOverlay);
+        document.head.removeChild(sdStyle);
+        psychoJS.window._renderer.view.style.display = 'block';
+        sd_done = true;
+    }
+    
+    document.getElementById('sd-submit').addEventListener('click', sdFinish);
+    
+    // ENTER = continue, SHIFT+ENTER = new line
+    sd_keyHandler = function(ev) {
+        if (ev.key === 'Enter' && !ev.shiftKey && !ev.repeat) {
+            ev.preventDefault();
+            sdFinish();
+        }
+    };
+    document.addEventListener('keydown', sd_keyHandler);
     psychoJS.experiment.addData('Scene_Description.started', globalClock.getTime());
     Scene_DescriptionMaxDuration = null
     // keep track of which components have finished
     Scene_DescriptionComponents = [];
-    Scene_DescriptionComponents.push(task_description);
-    Scene_DescriptionComponents.push(response_box);
-    Scene_DescriptionComponents.push(key_resp_description);
     Scene_DescriptionComponents.push(hint_text);
     
     for (const thisComponent of Scene_DescriptionComponents)
@@ -4613,65 +4839,6 @@ function Scene_DescriptionRoutineEachFrame() {
     frameN = frameN + 1;// number of completed frames (so 0 is the first frame)
     // update/draw components on each frame
     
-    // *task_description* updates
-    if (t >= 0.0 && task_description.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      task_description.tStart = t;  // (not accounting for frame time here)
-      task_description.frameNStart = frameN;  // exact frame index
-      
-      task_description.setAutoDraw(true);
-    }
-    
-    
-    // if task_description is active this frame...
-    if (task_description.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *response_box* updates
-    if (t >= 0.0 && response_box.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      response_box.tStart = t;  // (not accounting for frame time here)
-      response_box.frameNStart = frameN;  // exact frame index
-      
-      response_box.setAutoDraw(true);
-    }
-    
-    
-    // if response_box is active this frame...
-    if (response_box.status === PsychoJS.Status.STARTED) {
-    }
-    
-    
-    // *key_resp_description* updates
-    if (t >= 0.0 && key_resp_description.status === PsychoJS.Status.NOT_STARTED) {
-      // keep track of start time/frame for later
-      key_resp_description.tStart = t;  // (not accounting for frame time here)
-      key_resp_description.frameNStart = frameN;  // exact frame index
-      
-      // keyboard checking is just starting
-      psychoJS.window.callOnFlip(function() { key_resp_description.clock.reset(); });  // t=0 on next screen flip
-      psychoJS.window.callOnFlip(function() { key_resp_description.start(); }); // start on screen flip
-      psychoJS.window.callOnFlip(function() { key_resp_description.clearEvents(); });
-    }
-    
-    // if key_resp_description is active this frame...
-    if (key_resp_description.status === PsychoJS.Status.STARTED) {
-      let theseKeys = key_resp_description.getKeys({
-        keyList: typeof 'return' === 'string' ? ['return'] : 'return', 
-        waitRelease: false
-      });
-      _key_resp_description_allKeys = _key_resp_description_allKeys.concat(theseKeys);
-      if (_key_resp_description_allKeys.length > 0) {
-        key_resp_description.keys = _key_resp_description_allKeys[_key_resp_description_allKeys.length - 1].name;  // just the last key pressed
-        key_resp_description.rt = _key_resp_description_allKeys[_key_resp_description_allKeys.length - 1].rt;
-        key_resp_description.duration = _key_resp_description_allKeys[_key_resp_description_allKeys.length - 1].duration;
-        // a response ends the routine
-        continueRoutine = false;
-      }
-    }
-    
-    
     // *hint_text* updates
     if (t >= 0.0 && hint_text.status === PsychoJS.Status.NOT_STARTED) {
       // keep track of start time/frame for later
@@ -4686,17 +4853,9 @@ function Scene_DescriptionRoutineEachFrame() {
     if (hint_text.status === PsychoJS.Status.STARTED) {
     }
     
-    // Run 'Each Frame' code from continue_description
-    var text_length = (response_box.text) ? response_box.text.replace(/\s/g, '').length : 0;
-    
-    if (key_resp_description.keys === 'return' && text_length < 50) {
-        key_resp_description.keys = [];
-        _key_resp_description_allKeys = [];
-        continueRoutine = true;
+    if (sd_done) {
+        continueRoutine = false;
     }
-    
-    hint_text.setText(tr('desc_hint').replace('{n}', text_length));
-    applyLang(task_description)
     // check if the Routine should terminate
     if (!continueRoutine) {  // a component has requested a forced-end of Routine
       routineForceEnded = true;
@@ -4729,22 +4888,27 @@ function Scene_DescriptionRoutineEnd(snapshot) {
       }
     }
     psychoJS.experiment.addData('Scene_Description.stopped', globalClock.getTime());
-    psychoJS.experiment.addData('response_box.text',response_box.text)
-    // update the trial handler
-    if (currentLoop instanceof MultiStairHandler) {
-      currentLoop.addResponse(key_resp_description.corr, level);
-    }
-    psychoJS.experiment.addData('key_resp_description.keys', key_resp_description.keys);
-    if (typeof key_resp_description.keys !== 'undefined') {  // we had a response
-        psychoJS.experiment.addData('key_resp_description.rt', key_resp_description.rt);
-        psychoJS.experiment.addData('key_resp_description.duration', key_resp_description.duration);
-        routineTimer.reset();
-        }
+    var sdWords = function(t) { return t ? t.trim().split(/\s+/).filter(Boolean).length : 0; };
+    var sdChars = function(t) { return t ? t.replace(/\s/g, '').length : 0; };
     
-    key_resp_description.stop();
-    psychoJS.experiment.addData('Scene_Description.duration', Scene_DescriptionClock.getTime());
-    psychoJS.experiment.addData('description_char_count', response_box.text ? response_box.text.replace(/\s/g, '').length : 0);
-    psychoJS.experiment.addData('description_word_count', response_box.text ? response_box.text.trim().split(/\s+/).filter(Boolean).length : 0);
+    psychoJS.experiment.addData('Scene_Description.duration', sd_rt);
+    psychoJS.experiment.addData('face_description', sd_face);
+    psychoJS.experiment.addData('face_description_char_count', sdChars(sd_face));
+    psychoJS.experiment.addData('face_description_word_count', sdWords(sd_face));
+    psychoJS.experiment.addData('action_description', sd_action);
+    psychoJS.experiment.addData('action_description_char_count', sdChars(sd_action));
+    psychoJS.experiment.addData('action_description_word_count', sdWords(sd_action));
+    
+    // safety cleanup in case the routine ended early
+    if (sd_keyHandler) {
+        document.removeEventListener('keydown', sd_keyHandler);
+        sd_keyHandler = null;
+    }
+    var sdOv = document.getElementById('sd-overlay');
+    if (sdOv) { document.body.removeChild(sdOv); }
+    var sdSt = document.getElementById('sd-style');
+    if (sdSt) { document.head.removeChild(sdSt); }
+    psychoJS.window._renderer.view.style.display = 'block';
     // the Routine "Scene_Description" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
@@ -5720,6 +5884,12 @@ function Save_Interim_ResultsRoutineEnd(snapshot) {
         // Additional Supabase save
         saveToSupabase(participantID, allRows);
     }
+    
+    // remove the counter after the last scene (before the IAT starts)
+    if (scene_nr >= scene_total) {
+        hideSceneCounter();
+    }
+    
     // the Routine "Save_Interim_Results" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset();
     
