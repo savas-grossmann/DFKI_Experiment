@@ -49,6 +49,8 @@ function urlParam(name) {
 
 // Sona passes its own survey code as ?participant=%SURVEY_CODE%
 var sona_survey_code = urlParam('participant');
+// Participant from TU Berlin Sona
+var source = urlParam('source');
 // Consent
 var consent_given = false;
 var consent_declined = false;
@@ -99,9 +101,9 @@ var TX = {
     de: {
         task_description: 'Wie ist Ihr Gesamteindruck von der Person, die in dieser Situation dargestellt wird? Und wie würden Sie ihre möglichen Absichten beschreiben? Schreibe mindestens 50 Zeichen um weiterzumachen.',
 
-        ranking_bar_left: '◄ Am wahrscheinlichsten',
-        ranking_bar_right: 'Am unwahrscheinlichsten ►',
-        ranking_description: 'Bringen Sie die Gesichter in eine Rangfolge, wie wahrscheinlich sie zur Szene passen.',
+        ranking_bar_left: '◄ Am ähnlichsten',
+        ranking_bar_right: 'Am unähnlichsten ►',
+        ranking_description: 'Bringen Sie die Gesichter in eine Rangfolge, wie ähnlich sie zum vorher gezeigten Gesicht sind.',
 
         continue_hint: 'Drücken Sie ENTER, um fortzufahren',
         text_continue_triple: 'Drücken Sie ENTER, um fortzufahren',
@@ -1195,7 +1197,7 @@ async function experimentInit() {
   Scene_Presentation_TripleClock = new util.Clock();
   scene_triple = new visual.ImageStim({
     win : psychoJS.window,
-    name : 'scene_triple', units : undefined, 
+    name : 'scene_triple', units : 'height', 
     image : 'default.png', mask : undefined,
     anchor : 'center',
     ori : 0.0, 
@@ -1208,7 +1210,7 @@ async function experimentInit() {
   });
   face_triple = new visual.ImageStim({
     win : psychoJS.window,
-    name : 'face_triple', units : undefined, 
+    name : 'face_triple', units : 'height', 
     image : 'default.png', mask : undefined,
     anchor : 'center',
     ori : 0.0, 
@@ -1221,7 +1223,7 @@ async function experimentInit() {
   });
   item_triple = new visual.ImageStim({
     win : psychoJS.window,
-    name : 'item_triple', units : undefined, 
+    name : 'item_triple', units : 'height', 
     image : 'default.png', mask : undefined,
     anchor : 'center',
     ori : 0.0, 
@@ -1252,7 +1254,7 @@ async function experimentInit() {
     text: '',
     font: 'Arial',
     units: undefined, 
-    pos: [0.85, 0.45], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
+    pos: [0.9, 0.92], draggable: false, height: 0.05,  wrapWidth: undefined, ori: 0.0,
     languageStyle: 'LTR',
     color: new util.Color('white'),  opacity: undefined,
     depth: -7.0 
@@ -3640,8 +3642,8 @@ function InstructionsRoutineBegin(snapshot) {
             ['Phase 2 – Face Description',
              'After viewing the scene, you will be asked two short questions: to describe the face of the person, and to describe what the person is doing, in your own words.'],
             ['Phase 3 – Face Ranking',
-             'Your task is to rank the faces according to how likely they match the previously shown scene.<br><br>' +
-             'Place the face you think matches the scene best closer to <b>“Most likely”</b> and the face you think matches the scene least closer to <b>“Least likely”</b>.'],
+             'Your task is to rank the faces according to how likely they match the previously shown face.<br><br>' +
+             'Place the face you think matches the face best closer to <b>“Most likely”</b> and the face you think matches the scene least closer to <b>“Least likely”</b>.'],
             ['Phase 4 – Association Task',
              'Afterwards, you will complete a short association task. Words and images appear one at a time, and you assign each one to a category as quickly and as accurately as possible using the keyboard. Detailed instructions will follow before this task starts.']
         ],
@@ -3657,8 +3659,8 @@ function InstructionsRoutineBegin(snapshot) {
         exQuestionLabel: 'Question',
         exQA: [
             ['Provide a description of the person’s face so that we may identify them more easily.',
-             'The young person pictured has a fair, even complexion with light freckles on her cheeks and nose, as well as an oval face shape. Her narrow, straight, medium-brown eyebrows are striking. Below them are her almond-shaped, dark eyes with a calm gaze. She has a narrow, straight nose and full, slightly curved lips with a neutral facial expression.'],
-            ['Based on the other images, describe what the person is doing.',
+             'The young person pictured has a fair, even complexion with light freckles on her cheeks and nose, as well as an oval face shape. She has narrow, straight, medium-brown eyebrows. Below them are her almond-shaped, dark eyes. She has a narrow, straight nose and full, slightly curved lips.'],
+             ['Based on the other images, describe what the person is doing.',
              'Based on the images shown, the person is using a green drill to drill holes in the bathroom wall in order to hang the mirror. She is mounting the piece of furniture above the two sinks on the tiled wall.']
         ],
         exNote: 'Your answers do not have to match this wording. Please describe what you see in your own words.',
@@ -3676,8 +3678,8 @@ function InstructionsRoutineBegin(snapshot) {
             ['Phase 2 – Gesichtsbeschreibung',
              'Nach der Szene werden Sie zwei kurze Fragen beantworten: Sie beschreiben das Gesicht der Person und was die Person tut, jeweils in eigenen Worten.'],
             ['Phase 3 – Gesichter-Rangfolge',
-             'Ihre Aufgabe ist es, die Gesichter danach in eine Rangfolge zu bringen, wie wahrscheinlich sie zu der zuvor gezeigten Szene passen.<br><br>' +
-             'Platzieren Sie das Gesicht, das Ihrer Meinung nach am besten zur Szene passt, näher an <b>„Am wahrscheinlichsten“</b> und das Gesicht, das am wenigsten zur Szene passt, näher an <b>„Am unwahrscheinlichsten“</b>.'],
+             'Ihre Aufgabe ist es, die Gesichter danach in eine Rangfolge zu bringen, wie ähnlich sie zu dem zuvor gezeigten Gesicht passen.<br><br>' +
+             'Platzieren Sie das Gesicht, das Ihrer Meinung nach am besten zum zuvor gezeigten passt, näher an <b>„Am ähnlichsten“</b> und das Gesicht, das am wenigsten zur Szene passt, näher an <b>„Am unähnlichsten“</b>.'],
             ['Phase 4 – Assoziationsaufgabe',
              'Anschließend bearbeiten Sie eine kurze Assoziationsaufgabe. Wörter und Bilder erscheinen nacheinander, und Sie ordnen jedes davon so schnell und so genau wie möglich mithilfe der Tastatur einer Kategorie zu. Ausführliche Anweisungen folgen vor Beginn dieser Aufgabe.']
         ],
@@ -3693,7 +3695,7 @@ function InstructionsRoutineBegin(snapshot) {
         exQuestionLabel: 'Frage',
         exQA: [
             ['Beschreiben Sie das Gesicht der Person, damit wir sie leichter identifizieren können.',
-             'Die abgebildete junge Person hat einen hellen, gleichmäßigen Teint mit leichten Sommersprossen auf Wangen und Nase sowie eine ovale Gesichtsform. Auffällig sind ihre schmalen, geraden, mittelbraunen Augenbrauen. Darunter befinden sich ihre mandelförmigen, dunklen Augen mit ruhigem Blick. Sie hat eine schmale, gerade Nase und volle, leicht geschwungene Lippen bei neutralem Gesichtsausdruck.'],
+             'Die abgebildete junge Person hat einen hellen, gleichmäßigen Teint mit leichten Sommersprossen auf Wangen und Nase sowie eine ovale Gesichtsform. Sie hat schmale, gerade, mittelbraune Augenbrauen. Darunter befinden sich ihre mandelförmigen, dunklen Augen. Sie hat eine schmale, gerade Nase und volle, leicht geschwungene Lippen.'],
             ['Beschreiben Sie anhand der anderen Bilder, was die Person tut.',
              'Anhand der gezeigten Bilder bohrt die Person mit einem grünen Bohrer Löcher in die Badezimmerwand, um den Spiegel aufzuhängen. Sie montiert das Möbelstück über den beiden Waschbecken an der gefliesten Wand.']
         ],
@@ -4283,93 +4285,57 @@ function Scene_Presentation_TripleRoutineBegin(snapshot) {
     routineTimer.reset();
     Scene_Presentation_TripleMaxDurationReached = false;
     // update component parameters for each repeat
-    
     // =============================================
     // RESPONSIVE RANDOM IMAGE LAYOUT
+    // (image components must use units = 'height')
     // =============================================
     
-    // Screen dimensions (PsychoPy units = height)
+    // Screen dimensions in height units
     var screenWidth = psychoJS.window.size[0] / psychoJS.window.size[1];
     var screenHeight = 1;
     
-    // Layout parameters
-    var margin = 0.005;
-    var gap = 0.01;
+    // Layout parameters (height units)
+    var margin = 0.01;
+    var gap = 0.02;
+    var topReserve = 0.08;      // space at the top for the scene counter + timer
+    var bottomReserve = 0.14;   // space at the bottom for "Press ENTER to continue"
+    var maxLayoutWidth = 1.8;   // keeps the layout compact on ultrawide monitors
     
-    // Available screen area
-    var availableWidth = screenWidth - 2 * margin;
-    var availableHeight = screenHeight - 2 * margin;
+    // Available image area
+    var availableWidth = Math.min(screenWidth, maxLayoutWidth) - 2 * margin;
+    var availableHeight = screenHeight - topReserve - bottomReserve;
     
     // Two rows
     var rowHeight = (availableHeight - gap) / 2;
     
+    // Vertical centres of the image area and the two rows
+    var centerY = (bottomReserve - topReserve) / 2;
+    var yTop = centerY + (rowHeight + gap) / 2;
+    var yBottom = centerY - (rowHeight + gap) / 2;
+    
+    // Half-width slots (left / right)
+    var halfWidth = (availableWidth - gap) / 2;
+    var xLeft = -(availableWidth + gap) / 4;
+    var xRight = (availableWidth + gap) / 4;
+    
     // Two possible layouts:
     // 1. One image on top, two images below
     // 2. Two images on top, one image below
-    
     var singleImageOnTop = Math.random() < 0.5;
     
-    // Calculate positions and maximum bounding boxes
     var slots;
     
     if (singleImageOnTop) {
-    
-        // One large image on top
         slots = [
-            {
-                pos: [0, (rowHeight + gap) / 2],
-                maxSize: [availableWidth, rowHeight]
-            },
-            {
-                pos: [
-                    -(availableWidth + gap) / 4,
-                    -(rowHeight + gap) / 2
-                ],
-                maxSize: [
-                    (availableWidth - gap) / 2,
-                    rowHeight
-                ]
-            },
-            {
-                pos: [
-                    (availableWidth + gap) / 4,
-                    -(rowHeight + gap) / 2
-                ],
-                maxSize: [
-                    (availableWidth - gap) / 2,
-                    rowHeight
-                ]
-            }
+            { pos: [0, yTop],           maxSize: [availableWidth, rowHeight] },
+            { pos: [xLeft, yBottom],    maxSize: [halfWidth, rowHeight] },
+            { pos: [xRight, yBottom],   maxSize: [halfWidth, rowHeight] }
         ];
-    
     } else {
-    
-        // Two images on top, one large image below
         slots = [
-            {
-                pos: [
-                    -(availableWidth + gap) / 4,
-                    (rowHeight + gap) / 2
-                ],
-                maxSize: [
-                    (availableWidth - gap) / 2,
-                    rowHeight
-                ]
-            },
-            {
-                pos: [
-                    (availableWidth + gap) / 4,
-                    (rowHeight + gap) / 2
-                ],
-                maxSize: [
-                    (availableWidth - gap) / 2,
-                    rowHeight
-                ]
-            },
-            {
-                pos: [0, -(rowHeight + gap) / 2],
-                maxSize: [availableWidth, rowHeight]
-            }
+            { pos: [xLeft, yTop],       maxSize: [halfWidth, rowHeight] },
+            { pos: [xRight, yTop],      maxSize: [halfWidth, rowHeight] },
+            { pos: [0, yBottom],        maxSize: [availableWidth, rowHeight] }
         ];
     }
     
@@ -7458,6 +7424,7 @@ function End_DemographicsRoutineEnd(snapshot) {
 
 var ExitMaxDurationReached;
 var sonaCode;
+var sonaUrl;
 var debrief_done;
 var debrief_rt;
 var sona_opened;
@@ -7573,12 +7540,19 @@ function ExitRoutineBegin(snapshot) {
     // ---------- Settings ----------
     var SHOW_SONA_LINK = use_sona;
     var SONA_BASE = 'https://fernuni-hagen.sona-systems.com/webstudy_credit.aspx?experiment_id=1152&credit_token=2c54653912d442588f16e2e2a0ee7761&survey_code=';
+    var SONA_BASE_TU_BERLIN = 'https://tu-berlin.sona-systems.com/webstudy_credit.aspx?experiment_id=466&credit_token=0f1fc686722c43a59e79babe597b9bc7&survey_code=';
     var sonaCode = sona_survey_code;
     if (!sonaCode) {
         console.warn('No Sona survey code in the URL (?participant=...). The credit link will not work.');
         sonaCode = 'MISSING';
     }
+    
     var sonaUrl = SONA_BASE + encodeURIComponent(sonaCode);
+    // if participant is from TU use the TU sona link instead of the fu hagen
+    if(source == 'tub') {
+        sonaUrl = SONA_BASE_TU_BERLIN + encodeURIComponent(sonaCode);
+    }
+    
     // Sona completion redirect: PsychoJS sends the participant there when the experiment ends normally
     if (use_sona && sona_survey_code && typeof psychoJS.setRedirectUrls === 'function') {
         psychoJS.setRedirectUrls(sonaUrl, '');
